@@ -175,7 +175,7 @@ importers:
         version: 4.1.12
     devDependencies:
       '@biomejs/biome':
-        specifier: 2.3.4
+        specifier: ^2.3.4
         version: 2.3.4
       '@types/node':
         specifier: ^24.10.0
@@ -202,7 +202,7 @@ importers:
         specifier: ^5.9.2
         version: 5.9.3
       ultracite:
-        specifier: 6.3.2
+        specifier: ^6.3.2
         version: 6.3.2(typescript@5.9.3)
       vite:
         specifier: ^7.1.5
