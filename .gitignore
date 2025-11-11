@@ -93,3 +93,6 @@ storybook-static
 tmp/
 temp/
 
+# TanStack Router
+.tanstack/
+
