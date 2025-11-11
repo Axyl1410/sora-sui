@@ -30,7 +30,7 @@ if (!rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement);
   root.render(
     <React.StrictMode>
-      <Theme appearance="dark">
+      <Theme appearance="light">
         <QueryClientProvider client={queryClient}>
           <SuiClientProvider defaultNetwork="testnet" networks={networkConfig}>
             <WalletProvider autoConnect>
