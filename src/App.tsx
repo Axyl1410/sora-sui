@@ -2,8 +2,10 @@ import { ConnectButton, useCurrentAccount } from "@mysten/dapp-kit";
 import { isValidSuiObjectId } from "@mysten/sui/utils";
 import { Box, Container, Flex, Heading } from "@radix-ui/themes";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Counter } from "./Counter";
 import { CreateCounter } from "./CreateCounter";
+import { Button } from "./components/ui/button";
 
 function App() {
   const currentAccount = useCurrentAccount();
@@ -15,10 +17,10 @@ function App() {
   return (
     <>
       <Flex
+        justify="between"
         position="sticky"
         px="4"
         py="2"
-        justify="between"
         style={{
           borderBottom: "1px solid var(--gray-a2)",
         }}
@@ -50,7 +52,12 @@ function App() {
               />
             )
           ) : (
-            <Heading>Please connect your wallet</Heading>
+            <>
+              <Heading>Please connect your wallet</Heading>
+              <Button onClick={() => toast("test")} variant={"destructive"}>
+                test
+              </Button>
+            </>
           )}
         </Container>
       </Container>

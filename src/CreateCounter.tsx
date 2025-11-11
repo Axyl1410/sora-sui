@@ -1,8 +1,8 @@
+import { useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
 import { Button, Container } from "@radix-ui/themes";
-import { useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
-import { useNetworkVariable } from "./networkConfig";
 import ClipLoader from "react-spinners/ClipLoader";
+import { useNetworkVariable } from "./networkConfig";
 
 export function CreateCounter({
   onCreated,
@@ -32,7 +32,7 @@ export function CreateCounter({
       {
         onSuccess: async ({ digest }) => {
           const { effects } = await suiClient.waitForTransaction({
-            digest: digest,
+            digest,
             options: {
               showEffects: true,
             },
@@ -40,18 +40,18 @@ export function CreateCounter({
 
           onCreated(effects?.created?.[0]?.reference?.objectId!);
         },
-      },
+      }
     );
   }
 
   return (
     <Container>
       <Button
-        size="3"
+        disabled={isSuccess || isPending}
         onClick={() => {
           create();
         }}
-        disabled={isSuccess || isPending}
+        size="3"
       >
         {isSuccess || isPending ? <ClipLoader size={20} /> : "Create Counter"}
       </Button>

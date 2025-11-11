@@ -7,9 +7,9 @@ import {
 import type { SuiObjectData } from "@mysten/sui/client";
 import { Transaction } from "@mysten/sui/transactions";
 import { Button, Flex, Heading, Text } from "@radix-ui/themes";
-import { useNetworkVariable } from "./networkConfig";
 import { useState } from "react";
 import ClipLoader from "react-spinners/ClipLoader";
+import { useNetworkVariable } from "./networkConfig";
 
 export function Counter({ id }: { id: string }) {
   const counterPackageId = useNetworkVariable("counterPackageId");
@@ -54,7 +54,7 @@ export function Counter({ id }: { id: string }) {
             setWaitingForTxn("");
           });
         },
-      },
+      }
     );
   };
 
@@ -75,8 +75,8 @@ export function Counter({ id }: { id: string }) {
         <Text>Count: {getCounterFields(data.data)?.value}</Text>
         <Flex direction="row" gap="2">
           <Button
-            onClick={() => executeMoveCall("increment")}
             disabled={waitingForTxn !== ""}
+            onClick={() => executeMoveCall("increment")}
           >
             {waitingForTxn === "increment" ? (
               <ClipLoader size={20} />
@@ -86,8 +86,8 @@ export function Counter({ id }: { id: string }) {
           </Button>
           {ownedByCurrentAccount ? (
             <Button
-              onClick={() => executeMoveCall("reset")}
               disabled={waitingForTxn !== ""}
+              onClick={() => executeMoveCall("reset")}
             >
               {waitingForTxn === "reset" ? <ClipLoader size={20} /> : "Reset"}
             </Button>
