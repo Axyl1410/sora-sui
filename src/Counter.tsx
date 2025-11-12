@@ -48,11 +48,13 @@ export function Counter({ id }: { id: string }) {
         transaction: tx,
       },
       {
-        onSuccess: (tx) => {
-          suiClient.waitForTransaction({ digest: tx.digest }).then(async () => {
-            await refetch();
-            setWaitingForTxn("");
-          });
+        onSuccess: (txn) => {
+          suiClient
+            .waitForTransaction({ digest: txn.digest })
+            .then(async () => {
+              await refetch();
+              setWaitingForTxn("");
+            });
         },
       }
     );
@@ -103,6 +105,7 @@ export function Counter({ id }: { id: string }) {
     </>
   );
 }
+
 function getCounterFields(data: SuiObjectData) {
   if (data.content?.dataType !== "moveObject") {
     return null;

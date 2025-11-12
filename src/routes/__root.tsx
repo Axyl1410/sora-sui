@@ -23,6 +23,12 @@ const RootLayout = () => (
           </Link>
           <Link
             className="text-sm hover:underline [&.active]:font-bold"
+            to="/counter"
+          >
+            Counter
+          </Link>
+          <Link
+            className="text-sm hover:underline [&.active]:font-bold"
             to="/about"
           >
             About
@@ -44,7 +50,7 @@ const RootLayout = () => (
         <Outlet />
       </Container>
     </Container>
-    <Toaster closeButton position="bottom-right" />
+    <Toaster position="bottom-right" />
     <TanStackRouterDevtools />
   </>
 );
