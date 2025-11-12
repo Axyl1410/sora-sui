@@ -46,11 +46,12 @@ module blog::blog {
 
     /// CẢI TIẾN: Registry để track posts theo author
     /// Map: author_address -> Bag<post_id>
+    /// 
+    /// Lưu ý: authors table đã được xóa vì redundant - có thể check qua posts_by_author
     public struct PostRegistry has key, store {
         id: UID,
         posts_by_author: Table<address, Bag>,
         post_counts: Table<address, u64>, // Track số lượng posts của mỗi author
-        authors: Table<address, bool>, // Track authors có posts
     }
 
     public struct UserProfile has key {
@@ -138,7 +139,6 @@ module blog::blog {
             id: object::new(ctx),
             posts_by_author: table::new(ctx),
             post_counts: table::new(ctx),
-            authors: table::new(ctx),
         };
         transfer::share_object(post_registry);
     }
@@ -266,11 +266,14 @@ module blog::blog {
         let post_id = object::id(&post);
 
         // CẢI TIẾN: Register post vào PostRegistry
+        // Đảm bảo bag entry tồn tại
         if (!table::contains(&post_registry.posts_by_author, sender)) {
             let posts_bag = bag::new(ctx);
             table::add(&mut post_registry.posts_by_author, sender, posts_bag);
+        };
+        // Đảm bảo count entry tồn tại (có thể đã bị cleanup trước đó nếu count = 0)
+        if (!table::contains(&post_registry.post_counts, sender)) {
             table::add(&mut post_registry.post_counts, sender, 0);
-            table::add(&mut post_registry.authors, sender, true);
         };
         let posts_bag = table::borrow_mut(&mut post_registry.posts_by_author, sender);
         // Lưu ý: Bag trong Sui yêu cầu cả key và value
@@ -415,15 +418,22 @@ module blog::blog {
             let posts_bag = table::borrow_mut(&mut post_registry.posts_by_author, author);
             if (bag::contains(posts_bag, post_id)) {
                 let _value: bool = bag::remove(posts_bag, post_id);
-                // Update count - assert để đảm bảo count không bị desync
-                let count = table::borrow_mut(&mut post_registry.post_counts, author);
-                assert!(*count > 0, EPostCountDesync);
-                *count = *count - 1;
-                // Lưu ý: Nếu count = 0 nhưng vẫn có posts trong bag (do bug),
-                // count sẽ không bao giờ sync lại vì Move không hỗ trợ iterate bag
-                // Để fix, cần query off-chain và rebuild count
             };
         };
+        
+        // Update count sau khi đã release borrow từ posts_bag
+        if (table::contains(&post_registry.post_counts, author)) {
+            let count = table::borrow_mut(&mut post_registry.post_counts, author);
+            assert!(*count > 0, EPostCountDesync);
+            *count = *count - 1;
+            // Lưu giá trị để check cleanup sau
+        };
+        
+        // CẢI TIẾN: Giữ count entry = 0 để đồng bộ với bag
+        // Note: We don't remove the empty bag from posts_by_author because
+        // Bag struct doesn't have drop ability and we can't destructure it
+        // outside its module. We also keep the count entry = 0 to maintain
+        // consistency between count and bag state.
         
         event::emit(PostDeleted {
             post_id: post_id,
@@ -472,6 +482,7 @@ module blog::blog {
             title: post.title,
             content: post.content,
             created_at: post.created_at,
+
             updated_at: post.updated_at, // CẢI TIẾN: Thêm field này
         }
     }
@@ -500,11 +511,16 @@ module blog::blog {
     // === CẢI TIẾN: Functions để query posts theo author ===
     
     /// Kiểm tra xem author có posts không
+    /// CẢI TIẾN: Check cả count > 0 để tránh inconsistency với empty bag
     public fun author_has_posts(
         post_registry: &PostRegistry,
         author: address
     ): bool {
-        table::contains(&post_registry.posts_by_author, author)
+        if (!table::contains(&post_registry.post_counts, author)) {
+            return false
+        };
+        let count = *table::borrow(&post_registry.post_counts, author);
+        count > 0 && table::contains(&post_registry.posts_by_author, author)
     }
 
     /// Lấy số lượng posts của một author
@@ -534,31 +550,17 @@ module blog::blog {
     }
 
     /// Kiểm tra xem một address có phải là author có posts không
+    /// 
+    /// CẢI TIẾN: Check cả count > 0 để tránh inconsistency với empty bag
     public fun is_author(
         post_registry: &PostRegistry,
         address: address
     ): bool {
-        table::contains(&post_registry.authors, address)
-    }
-
-    /// Lấy số lượng authors có posts
-    /// 
-    /// ⚠️ LƯU Ý QUAN TRỌNG: Hàm này KHÔNG THỂ hoạt động on-chain vì Move không hỗ trợ iterate qua Table.
-    /// 
-    /// Để lấy tổng số authors, bạn PHẢI query off-chain qua:
-    /// - Events: Query tất cả PostCreated events và đếm unique authors
-    /// - Indexer: Sử dụng indexer service để track authors
-    /// 
-    /// Hàm này được giữ lại chỉ để tương thích API, nhưng luôn trả về 0.
-    /// 
-    /// @deprecated Sử dụng off-chain query thay vì hàm này
-    public fun get_total_authors_count(
-        _post_registry: &PostRegistry
-    ): u64 {
-        // Move không hỗ trợ iterate qua Table/Bag on-chain
-        // Phải query off-chain qua events hoặc indexer
-        // Hàm này luôn trả về 0 để tránh gây hiểu nhầm
-        0
+        if (!table::contains(&post_registry.post_counts, address)) {
+            return false
+        };
+        let count = *table::borrow(&post_registry.post_counts, address);
+        count > 0 && table::contains(&post_registry.posts_by_author, address)
     }
 
     #[test_only]
@@ -566,4 +568,3 @@ module blog::blog {
         init(ctx);
     }
 }
-
