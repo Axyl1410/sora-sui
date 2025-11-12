@@ -44,7 +44,7 @@ const RootLayout = () => (
         <Outlet />
       </Container>
     </Container>
-    <Toaster closeButton position="top-center" />
+    <Toaster closeButton position="bottom-right" />
     <TanStackRouterDevtools />
   </>
 );

@@ -58,11 +58,17 @@ export function Counter({ id }: { id: string }) {
     );
   };
 
-  if (isPending) return <Text>Loading...</Text>;
+  if (isPending) {
+    return <Text>Loading...</Text>;
+  }
 
-  if (error) return <Text>Error: {error.message}</Text>;
+  if (error) {
+    return <Text>Error: {error.message}</Text>;
+  }
 
-  if (!data.data) return <Text>Not found</Text>;
+  if (!data.data) {
+    return <Text>Not found</Text>;
+  }
 
   const ownedByCurrentAccount =
     getCounterFields(data.data)?.owner === currentAccount?.address;
