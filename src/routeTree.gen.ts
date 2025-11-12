@@ -9,10 +9,18 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as CreateRouteImport } from './routes/create'
 import { Route as CounterRouteImport } from './routes/counter'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProfileAddressRouteImport } from './routes/profile.$address'
+import { Route as PostIdRouteImport } from './routes/post.$id'
 
+const CreateRoute = CreateRouteImport.update({
+  id: '/create',
+  path: '/create',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CounterRoute = CounterRouteImport.update({
   id: '/counter',
   path: '/counter',
@@ -28,39 +36,87 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProfileAddressRoute = ProfileAddressRouteImport.update({
+  id: '/profile/$address',
+  path: '/profile/$address',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PostIdRoute = PostIdRouteImport.update({
+  id: '/post/$id',
+  path: '/post/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/counter': typeof CounterRoute
+  '/create': typeof CreateRoute
+  '/post/$id': typeof PostIdRoute
+  '/profile/$address': typeof ProfileAddressRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/counter': typeof CounterRoute
+  '/create': typeof CreateRoute
+  '/post/$id': typeof PostIdRoute
+  '/profile/$address': typeof ProfileAddressRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/counter': typeof CounterRoute
+  '/create': typeof CreateRoute
+  '/post/$id': typeof PostIdRoute
+  '/profile/$address': typeof ProfileAddressRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/counter'
+  fullPaths:
+    | '/'
+    | '/about'
+    | '/counter'
+    | '/create'
+    | '/post/$id'
+    | '/profile/$address'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/counter'
-  id: '__root__' | '/' | '/about' | '/counter'
+  to:
+    | '/'
+    | '/about'
+    | '/counter'
+    | '/create'
+    | '/post/$id'
+    | '/profile/$address'
+  id:
+    | '__root__'
+    | '/'
+    | '/about'
+    | '/counter'
+    | '/create'
+    | '/post/$id'
+    | '/profile/$address'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   CounterRoute: typeof CounterRoute
+  CreateRoute: typeof CreateRoute
+  PostIdRoute: typeof PostIdRoute
+  ProfileAddressRoute: typeof ProfileAddressRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/create': {
+      id: '/create'
+      path: '/create'
+      fullPath: '/create'
+      preLoaderRoute: typeof CreateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/counter': {
       id: '/counter'
       path: '/counter'
@@ -82,6 +138,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/profile/$address': {
+      id: '/profile/$address'
+      path: '/profile/$address'
+      fullPath: '/profile/$address'
+      preLoaderRoute: typeof ProfileAddressRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/post/$id': {
+      id: '/post/$id'
+      path: '/post/$id'
+      fullPath: '/post/$id'
+      preLoaderRoute: typeof PostIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -89,6 +159,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   CounterRoute: CounterRoute,
+  CreateRoute: CreateRoute,
+  PostIdRoute: PostIdRoute,
+  ProfileAddressRoute: ProfileAddressRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
