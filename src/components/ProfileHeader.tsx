@@ -1,18 +1,20 @@
 import { useCurrentAccount } from "@mysten/dapp-kit";
-import { Link } from "@tanstack/react-router";
 import { Edit, User } from "lucide-react";
+import { useState } from "react";
+import { EditProfileDialog } from "@/components/EditProfileDialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
-interface ProfileHeaderProps {
+type ProfileHeaderProps = {
   address: string;
   name?: string;
   bio?: string;
   postCount?: number;
   createdAt?: number;
   isOwnProfile?: boolean;
-}
+  profileId?: string;
+};
 
 export function ProfileHeader({
   address,
@@ -21,9 +23,11 @@ export function ProfileHeader({
   postCount = 0,
   createdAt,
   isOwnProfile = false,
+  profileId,
 }: ProfileHeaderProps) {
   const currentAccount = useCurrentAccount();
   const isCurrentUser = currentAccount?.address === address;
+  const [showEditDialog, setShowEditDialog] = useState(false);
 
   const getInitials = (name?: string, address?: string) => {
     if (name) {
@@ -48,7 +52,7 @@ export function ProfileHeader({
       <CardContent className="p-6">
         <div className="flex flex-col gap-4 sm:flex-row">
           {/* Avatar */}
-          <div className="flex-shrink-0">
+          <div className="shrink-0">
             <Avatar className="size-20 sm:size-24">
               <AvatarFallback className="text-2xl">
                 {getInitials(name, address)}
@@ -68,12 +72,14 @@ export function ProfileHeader({
                 </p>
               </div>
 
-              {isCurrentUser && (
-                <Button asChild size="sm" variant="outline">
-                  <Link to="/profile/edit">
-                    <Edit className="mr-2 size-4" />
-                    Edit Profile
-                  </Link>
+              {isCurrentUser && profileId && (
+                <Button
+                  onClick={() => setShowEditDialog(true)}
+                  size="sm"
+                  variant="outline"
+                >
+                  <Edit className="mr-2 size-4" />
+                  Edit Profile
                 </Button>
               )}
             </div>
@@ -103,6 +109,18 @@ export function ProfileHeader({
           </div>
         </div>
       </CardContent>
+      {profileId && (
+        <EditProfileDialog
+          initialBio={bio ?? ""}
+          initialName={name ?? ""}
+          onOpenChange={setShowEditDialog}
+          onSuccess={() => {
+            // Profile will be refetched automatically via query invalidation
+          }}
+          open={showEditDialog}
+          profileId={profileId}
+        />
+      )}
     </Card>
   );
 }

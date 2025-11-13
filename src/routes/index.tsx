@@ -1,5 +1,4 @@
 import { useCurrentAccount } from "@mysten/dapp-kit";
-import { Heading, Text } from "@radix-ui/themes";
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -25,7 +24,6 @@ function Index() {
   const { data: registries } = useBlogRegistries();
   const [showCreateProfile, setShowCreateProfile] = useState(false);
 
-  // Check if user needs to create profile
   useEffect(() => {
     if (
       currentAccount &&
@@ -34,11 +32,9 @@ function Index() {
       registries?.profileRegistry
     ) {
       // User is connected but doesn't have a profile
-      // Don't auto-show, let them click a button
     }
   }, [currentAccount, currentProfile, profileLoading, registries]);
 
-  // Get author names from profiles (simplified - in production, you'd want to cache this)
   const postsWithNames =
     posts?.map((post) => ({
       ...post,
@@ -49,7 +45,6 @@ function Index() {
     })) ?? [];
 
   const handlePostCreated = () => {
-    // Invalidate posts query to refetch
     queryClient.invalidateQueries({ queryKey: ["posts"] });
     queryClient.invalidateQueries({ queryKey: ["author-posts"] });
     navigate({ to: "/" });
@@ -65,58 +60,64 @@ function Index() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-2xl space-y-6 py-6">
-        <div className="flex items-center justify-center py-12">
-          <ClipLoader size={32} />
-        </div>
+      <div className="flex h-full items-center justify-center">
+        <ClipLoader size={32} />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="mx-auto max-w-2xl space-y-6 py-6">
-        <Text color="red">Error loading posts: {error.message}</Text>
+      <div className="flex h-full items-center justify-center">
+        <p className="text-destructive">Error loading posts: {error.message}</p>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 py-6">
-      <div className="mb-4 flex items-center justify-between">
-        <Heading size="8">Home</Heading>
+    <div className="flex h-full flex-col">
+      {/* Header */}
+      <div className="sticky top-0 z-10 border-border border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
+        <div className="flex h-14 items-center px-4">
+          <h1 className="font-bold text-xl">Home</h1>
+        </div>
       </div>
 
-      {currentAccount && (
-        <>
-          {shouldShowCreateProfile && (
-            <div className="rounded-lg border bg-muted p-4 text-center">
-              <Text className="mb-2 block">
-                Create a profile to start posting
-              </Text>
-              <Button onClick={() => setShowCreateProfile(true)}>
-                Create Profile
-              </Button>
-            </div>
-          )}
-          {currentProfile && <CreatePostForm onSuccess={handlePostCreated} />}
-          <CreateProfileDialog
-            onOpenChange={setShowCreateProfile}
-            onSuccess={handleProfileCreated}
-            open={showCreateProfile}
-          />
-        </>
-      )}
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto">
+        {currentAccount && (
+          <>
+            {shouldShowCreateProfile && (
+              <div className="border-border border-b bg-muted/50 p-4 text-center">
+                <p className="mb-2 text-sm">
+                  Create a profile to start posting
+                </p>
+                <Button onClick={() => setShowCreateProfile(true)} size="sm">
+                  Create Profile
+                </Button>
+              </div>
+            )}
+            {currentProfile && (
+              <div className="border-border border-b p-4">
+                <CreatePostForm onSuccess={handlePostCreated} />
+              </div>
+            )}
+            <CreateProfileDialog
+              onOpenChange={setShowCreateProfile}
+              onSuccess={handleProfileCreated}
+              open={showCreateProfile}
+            />
+          </>
+        )}
 
-      <div>
-        <Heading className="mb-4" size="6">
-          Latest Posts
-        </Heading>
-        <PostList
-          emptyMessage="No posts yet. Be the first to post!"
-          isOwner={(author) => currentAccount?.address === author}
-          posts={postsWithNames}
-        />
+        {/* Posts Feed */}
+        <div className="divide-y divide-border">
+          <PostList
+            emptyMessage="No posts yet. Be the first to post!"
+            isOwner={(author) => currentAccount?.address === author}
+            posts={postsWithNames}
+          />
+        </div>
       </div>
     </div>
   );

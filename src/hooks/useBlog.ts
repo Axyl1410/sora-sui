@@ -630,3 +630,105 @@ export function useDeletePost() {
 
   return { deletePost, isPending, error };
 }
+
+// Hook to update profile name
+export function useUpdateProfileName() {
+  const blogPackageId = useNetworkVariable("blogPackageId");
+  const suiClient = useSuiClient();
+  const { mutate: signAndExecute, isPending } = useSignAndExecuteTransaction();
+  const [error, setError] = useState<string | null>(null);
+
+  const updateProfileName = (profileId: string, name: string) => {
+    setError(null);
+
+    const tx = new Transaction();
+    const clockId = "0x6";
+
+    tx.moveCall({
+      arguments: [
+        tx.object(profileId),
+        tx.pure.string(name),
+        tx.object(clockId),
+      ],
+      target: `${blogPackageId}::blog::update_profile_name`,
+    });
+
+    return new Promise<void>((resolve, reject) => {
+      signAndExecute(
+        {
+          transaction: tx,
+        },
+        {
+          onSuccess: ({ digest }) => {
+            suiClient
+              .waitForTransaction({ digest })
+              .then(() => {
+                resolve();
+              })
+              .catch((err) => {
+                reject(err);
+              });
+          },
+          onError: (err) => {
+            const errorMessage = parseMoveError(err);
+            setError(errorMessage);
+            reject(new Error(errorMessage));
+          },
+        }
+      );
+    });
+  };
+
+  return { updateProfileName, isPending, error };
+}
+
+// Hook to update profile bio
+export function useUpdateProfileBio() {
+  const blogPackageId = useNetworkVariable("blogPackageId");
+  const suiClient = useSuiClient();
+  const { mutate: signAndExecute, isPending } = useSignAndExecuteTransaction();
+  const [error, setError] = useState<string | null>(null);
+
+  const updateProfileBio = (profileId: string, bio: string) => {
+    setError(null);
+
+    const tx = new Transaction();
+    const clockId = "0x6";
+
+    tx.moveCall({
+      arguments: [
+        tx.object(profileId),
+        tx.pure.string(bio),
+        tx.object(clockId),
+      ],
+      target: `${blogPackageId}::blog::update_profile_bio`,
+    });
+
+    return new Promise<void>((resolve, reject) => {
+      signAndExecute(
+        {
+          transaction: tx,
+        },
+        {
+          onSuccess: ({ digest }) => {
+            suiClient
+              .waitForTransaction({ digest })
+              .then(() => {
+                resolve();
+              })
+              .catch((err) => {
+                reject(err);
+              });
+          },
+          onError: (err) => {
+            const errorMessage = parseMoveError(err);
+            setError(errorMessage);
+            reject(new Error(errorMessage));
+          },
+        }
+      );
+    });
+  };
+
+  return { updateProfileBio, isPending, error };
+}

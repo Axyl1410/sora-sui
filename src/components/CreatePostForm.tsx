@@ -1,16 +1,11 @@
+import { useCurrentAccount } from "@mysten/dapp-kit";
+import { Image, Smile } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useCreatePost } from "@/hooks/useBlog";
+import { useCreatePost, useProfile } from "@/hooks/useBlog";
 
 type CreatePostFormProps = {
   onSubmit?: (data: { title: string; content: string }) => void | Promise<void>;
@@ -61,6 +56,8 @@ export function CreatePostForm({
   submitLabel = "Post",
   onSuccess,
 }: CreatePostFormProps) {
+  const currentAccount = useCurrentAccount();
+  const { data: currentProfile } = useProfile(currentAccount?.address);
   const [title, setTitle] = useState(initialTitle);
   const [content, setContent] = useState(initialContent);
   const [error, setError] = useState<string | null>(null);
@@ -92,7 +89,6 @@ export function CreatePostForm({
       if (onSubmit) {
         await onSubmit({ title: title.trim(), content: content.trim() });
       } else {
-        // Use hook to create post on-chain
         await createPost(title.trim(), content.trim());
         toast.success("Post created successfully!");
       }
@@ -107,69 +103,103 @@ export function CreatePostForm({
     }
   };
 
+  const getInitials = (name?: string, address?: string) => {
+    if (name) {
+      return name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2);
+    }
+    if (address) {
+      return address.slice(2, 4).toUpperCase();
+    }
+    return "??";
+  };
+
   const titleLength = title.length;
   const contentLength = content.length;
+  const canPost = title.trim() && content.trim() && !isLoading;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Create New Post</CardTitle>
-        <CardDescription>
-          Share your thoughts with the community
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="space-y-2">
-            <Input
-              className="text-base"
+    <form className="space-y-3" onSubmit={handleSubmit}>
+      <div className="flex gap-3">
+        {/* Avatar */}
+        <Avatar className="size-10 flex-shrink-0">
+          <AvatarFallback>
+            {getInitials(currentProfile?.name, currentAccount?.address)}
+          </AvatarFallback>
+        </Avatar>
+
+        {/* Form Content */}
+        <div className="min-w-0 flex-1 space-y-3">
+          {/* Title Input */}
+          <div className="space-y-1">
+            <input
+              className="w-full border-none bg-transparent text-lg placeholder:text-muted-foreground focus:outline-none"
               disabled={isLoading}
               maxLength={MAX_TITLE_LENGTH}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Post title..."
               value={title}
             />
-            <div className="flex justify-between text-muted-foreground text-xs">
-              <span>
-                {(error || createError) && (
-                  <span className="text-destructive">
-                    {error || createError}
-                  </span>
-                )}
-              </span>
-              <span>
-                {titleLength}/{MAX_TITLE_LENGTH}
-              </span>
-            </div>
+            {(error || createError) && (
+              <p className="text-destructive text-sm">{error || createError}</p>
+            )}
           </div>
 
-          <div className="space-y-2">
+          {/* Content Textarea */}
+          <div className="space-y-1">
             <Textarea
-              className="min-h-32 resize-none text-base"
+              className="min-h-20 resize-none border-none bg-transparent text-lg placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
               disabled={isLoading}
               maxLength={MAX_CONTENT_LENGTH}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="What's on your mind?"
+              placeholder="What's happening?"
               value={content}
             />
-            <div className="flex justify-end text-muted-foreground text-xs">
-              <span>
-                {contentLength}/{MAX_CONTENT_LENGTH}
-              </span>
-            </div>
           </div>
 
-          <div className="flex justify-end gap-2">
-            <Button
-              className="min-w-24"
-              disabled={isLoading || !title.trim() || !content.trim()}
-              type="submit"
-            >
-              {isLoading ? "Posting..." : submitLabel}
-            </Button>
+          {/* Actions */}
+          <div className="flex items-center justify-between border-border border-t pt-3">
+            <div className="flex items-center gap-4 text-primary">
+              <Button
+                className="size-9 rounded-full"
+                size="icon"
+                type="button"
+                variant="ghost"
+              >
+                <Image className="size-5" />
+              </Button>
+              <Button
+                className="size-9 rounded-full"
+                size="icon"
+                type="button"
+                variant="ghost"
+              >
+                <Smile className="size-5" />
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {(titleLength > 0 || contentLength > 0) && (
+                <span className="text-muted-foreground text-sm">
+                  {contentLength}/{MAX_CONTENT_LENGTH}
+                </span>
+              )}
+              <Button
+                className="rounded-full px-6 font-semibold"
+                disabled={!canPost}
+                size="sm"
+                type="submit"
+              >
+                {isLoading ? "Posting..." : submitLabel}
+              </Button>
+            </div>
           </div>
-        </form>
-      </CardContent>
-    </Card>
+        </div>
+      </div>
+    </form>
   );
 }

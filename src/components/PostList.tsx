@@ -1,7 +1,7 @@
 import { Empty } from "@/components/ui/empty";
 import { PostCard } from "./PostCard";
 
-interface Post {
+type Post = {
   id: string;
   author: string;
   authorName?: string;
@@ -9,14 +9,14 @@ interface Post {
   content: string;
   createdAt: number;
   updatedAt: number;
-}
+};
 
-interface PostListProps {
+type PostListProps = {
   posts: Post[];
   isOwner?: (author: string) => boolean;
   onDelete?: (postId: string) => void;
   emptyMessage?: string;
-}
+};
 
 export function PostList({
   posts,

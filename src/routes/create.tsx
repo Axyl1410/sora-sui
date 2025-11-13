@@ -1,10 +1,7 @@
 import { useCurrentAccount } from "@mysten/dapp-kit";
-import { Heading } from "@radix-ui/themes";
 import { useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { CreatePostForm } from "@/components/CreatePostForm";
-import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/create")({
   component: CreatePostPage,
@@ -17,31 +14,32 @@ function CreatePostPage() {
 
   if (!currentAccount) {
     return (
-      <div className="mx-auto max-w-2xl space-y-6 py-6">
-        <Heading>Please connect your wallet to create a post</Heading>
+      <div className="flex h-full items-center justify-center">
+        <p className="text-muted-foreground">
+          Please connect your wallet to create a post
+        </p>
       </div>
     );
   }
 
   const handleSuccess = () => {
-    // Invalidate posts query to refetch
     queryClient.invalidateQueries({ queryKey: ["posts"] });
     navigate({ to: "/" });
   };
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 py-6">
-      <div className="flex items-center gap-4">
-        <Button asChild variant="ghost">
-          <Link to="/">
-            <ArrowLeft className="mr-2 size-4" />
-            Back
-          </Link>
-        </Button>
-        <Heading size="8">Create New Post</Heading>
+    <div className="flex h-full flex-col">
+      {/* Header */}
+      <div className="sticky top-0 z-10 border-border border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
+        <div className="flex h-14 items-center px-4">
+          <h1 className="font-bold text-xl">Create Post</h1>
+        </div>
       </div>
 
-      <CreatePostForm onSuccess={handleSuccess} />
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-4">
+        <CreatePostForm onSuccess={handleSuccess} />
+      </div>
     </div>
   );
 }

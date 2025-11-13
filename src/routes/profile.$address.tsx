@@ -1,9 +1,9 @@
 import { useCurrentAccount } from "@mysten/dapp-kit";
-import { Heading, Text } from "@radix-ui/themes";
 import { createFileRoute } from "@tanstack/react-router";
 import ClipLoader from "react-spinners/ClipLoader";
 import { PostList } from "@/components/PostList";
 import { ProfileHeader } from "@/components/ProfileHeader";
+import { Separator } from "@/components/ui/separator";
 import { useAuthorPosts, useProfile } from "@/hooks/useBlog";
 
 export const Route = createFileRoute("/profile/$address")({
@@ -28,20 +28,18 @@ function ProfilePage() {
 
   if (profileLoading || postsLoading) {
     return (
-      <div className="mx-auto max-w-2xl space-y-6 py-6">
-        <div className="flex items-center justify-center py-12">
-          <ClipLoader size={32} />
-        </div>
+      <div className="flex h-full items-center justify-center">
+        <ClipLoader size={32} />
       </div>
     );
   }
 
-  if (profileError || postsError) {
+  if (profileError || postsError || !profile) {
     return (
-      <div className="mx-auto max-w-2xl space-y-6 py-6">
-        <Text color="red">
-          Error loading profile: {profileError?.message || postsError?.message}
-        </Text>
+      <div className="flex h-full items-center justify-center">
+        <p className="text-destructive">
+          {profileError?.message || postsError?.message || "Profile not found"}
+        </p>
       </div>
     );
   }
@@ -53,29 +51,42 @@ function ProfilePage() {
     })) ?? [];
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 py-6">
-      <ProfileHeader
-        address={address}
-        bio={profile?.bio}
-        createdAt={profile?.createdAt}
-        isOwnProfile={isOwnProfile}
-        name={profile?.name}
-        postCount={posts?.length ?? 0}
-      />
+    <div className="flex h-full flex-col">
+      {/* Header */}
+      <div className="sticky top-0 z-10 border-border border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex h-14 items-center px-4">
+          <h1 className="font-bold text-xl">
+            {isOwnProfile ? "Your Profile" : profile.name}
+          </h1>
+        </div>
+      </div>
 
-      <div>
-        <Heading className="mb-4" size="6">
-          Posts
-        </Heading>
-        <PostList
-          emptyMessage={
-            isOwnProfile
-              ? "You haven't posted anything yet. Create your first post!"
-              : "This user hasn't posted anything yet."
-          }
-          isOwner={(author) => currentAccount?.address === author}
-          posts={postsWithNames}
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto">
+        <ProfileHeader
+          address={address}
+          bio={profile.bio}
+          createdAt={profile.createdAt}
+          isOwnProfile={isOwnProfile}
+          name={profile.name}
+          postCount={posts?.length ?? 0}
+          profileId={profile.id}
         />
+
+        <Separator />
+
+        {/* Posts */}
+        <div className="divide-y divide-border">
+          <PostList
+            emptyMessage={
+              isOwnProfile
+                ? "You haven't posted anything yet. Create your first post!"
+                : "This user hasn't posted anything yet."
+            }
+            isOwner={(author) => currentAccount?.address === author}
+            posts={postsWithNames}
+          />
+        </div>
       </div>
     </div>
   );
