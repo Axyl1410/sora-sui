@@ -1,11 +1,32 @@
 import { useCurrentAccount } from "@mysten/dapp-kit";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Text } from "@radix-ui/themes";
+import { useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Edit, MessageCircle, Trash2 } from "lucide-react";
 import { useState } from "react";
+import ClipLoader from "react-spinners/ClipLoader";
+import { toast } from "sonner";
 import { CreatePostForm } from "@/components/CreatePostForm";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  useDeletePost,
+  usePost,
+  useProfile,
+  useUpdatePost,
+} from "@/hooks/useBlog";
 
 export const Route = createFileRoute("/post/$id")({
   component: PostDetailPage,
@@ -14,22 +35,18 @@ export const Route = createFileRoute("/post/$id")({
 function PostDetailPage() {
   const currentAccount = useCurrentAccount();
   const { id } = Route.useParams();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  // Mock data - sẽ được thay thế bằng data thật từ contract
-  const mockPost = {
-    id,
-    author: "0x1234567890abcdef1234567890abcdef12345678",
-    authorName: "Alice",
-    title: "Welcome to Sui Blog!",
-    content:
-      "This is my first post on the Sui blockchain. Excited to share my thoughts with everyone!\n\nSui is an amazing platform that makes building dApps so much easier. The object model is intuitive and the performance is incredible.",
-    createdAt: Date.now() - 3_600_000,
-    updatedAt: Date.now() - 3_600_000,
-  };
+  const { data: post, isLoading: postLoading, error: postError } = usePost(id);
+  const { data: authorProfile } = useProfile(post?.author);
+  const { updatePost, isPending: isUpdating } = useUpdatePost();
+  const { deletePost, isPending: isDeleting } = useDeletePost();
 
-  const isOwner = currentAccount?.address === mockPost.author;
-  const isEdited = mockPost.updatedAt > mockPost.createdAt;
+  const isOwner = currentAccount?.address === post?.author;
+  const isEdited = post ? post.updatedAt > post.createdAt : false;
 
   const formatDate = (timestamp: number) =>
     new Date(timestamp).toLocaleString();
@@ -49,9 +66,61 @@ function PostDetailPage() {
     return "??";
   };
 
+  const handleUpdate = async (data: { title: string; content: string }) => {
+    if (!post) {
+      return;
+    }
+
+    try {
+      await updatePost(post.id, data.title, data.content);
+      toast.success("Post updated successfully!");
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+      queryClient.invalidateQueries({ queryKey: ["post", id] });
+      queryClient.invalidateQueries({ queryKey: ["author-posts"] });
+      setIsEditing(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update post");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!post) {
+      return;
+    }
+
+    try {
+      await deletePost(post.id);
+      toast.success("Post deleted successfully!");
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+      queryClient.invalidateQueries({ queryKey: ["author-posts"] });
+      setShowDeleteDialog(false);
+      navigate({ to: "/" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete post");
+    }
+  };
+
+  if (postLoading) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-6 py-6">
+        <div className="flex items-center justify-center py-12">
+          <ClipLoader size={32} />
+        </div>
+      </div>
+    );
+  }
+
+  if (postError || !post) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-6 py-6">
+        <Text color="red">{postError?.message || "Post not found"}</Text>
+      </div>
+    );
+  }
+
   const displayName =
-    mockPost.authorName ||
-    `${mockPost.author.slice(0, 6)}...${mockPost.author.slice(-4)}`;
+    authorProfile?.name ||
+    `${post.author.slice(0, 6)}...${post.author.slice(-4)}`;
 
   if (isEditing) {
     return (
@@ -62,13 +131,10 @@ function PostDetailPage() {
         </Button>
 
         <CreatePostForm
-          initialContent={mockPost.content}
-          initialTitle={mockPost.title}
-          onSubmit={async (data) => {
-            // TODO: Implement update post logic
-            console.log("Updating post:", data);
-            setIsEditing(false);
-          }}
+          initialContent={post.content}
+          initialTitle={post.title}
+          isLoading={isUpdating}
+          onSubmit={handleUpdate}
           submitLabel="Update Post"
         />
       </div>
@@ -88,10 +154,10 @@ function PostDetailPage() {
         <CardContent className="p-6">
           <div className="flex gap-4">
             {/* Avatar */}
-            <Link params={{ address: mockPost.author }} to="/profile/$address">
+            <Link params={{ address: post.author }} to="/profile/$address">
               <Avatar className="size-12 cursor-pointer transition-opacity hover:opacity-80">
                 <AvatarFallback>
-                  {getInitials(mockPost.authorName, mockPost.author)}
+                  {getInitials(authorProfile?.name, post.author)}
                 </AvatarFallback>
               </Avatar>
             </Link>
@@ -103,13 +169,13 @@ function PostDetailPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <Link
                     className="font-semibold hover:underline"
-                    params={{ address: mockPost.author }}
+                    params={{ address: post.author }}
                     to="/profile/$address"
                   >
                     {displayName}
                   </Link>
                   <span className="text-muted-foreground text-sm">
-                    {formatDate(mockPost.createdAt)}
+                    {formatDate(post.createdAt)}
                     {isEdited && " · Edited"}
                   </span>
                 </div>
@@ -124,23 +190,56 @@ function PostDetailPage() {
                     >
                       <Edit className="size-4" />
                     </Button>
-                    <Button
-                      className="text-destructive hover:text-destructive"
-                      size="icon-sm"
-                      variant="ghost"
+                    <AlertDialog
+                      onOpenChange={setShowDeleteDialog}
+                      open={showDeleteDialog}
                     >
-                      <Trash2 className="size-4" />
-                    </Button>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          className="text-destructive hover:text-destructive"
+                          disabled={isDeleting}
+                          size="icon-sm"
+                          variant="ghost"
+                        >
+                          {isDeleting ? (
+                            <ClipLoader size={16} />
+                          ) : (
+                            <Trash2 className="size-4" />
+                          )}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Post</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete this post? This
+                            action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel disabled={isDeleting}>
+                            Cancel
+                          </AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            disabled={isDeleting}
+                            onClick={handleDelete}
+                          >
+                            {isDeleting ? "Deleting..." : "Delete"}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 )}
               </div>
 
               {/* Title */}
-              <h1 className="mb-4 font-bold text-2xl">{mockPost.title}</h1>
+              <h1 className="mb-4 font-bold text-2xl">{post.title}</h1>
 
               {/* Content */}
-              <p className="mb-6 whitespace-pre-wrap break-words text-base">
-                {mockPost.content}
+              <p className="wrap-break-word mb-6 whitespace-pre-wrap text-base">
+                {post.content}
               </p>
 
               {/* Footer */}

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -9,13 +10,15 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useCreatePost } from "@/hooks/useBlog";
 
 type CreatePostFormProps = {
-  onSubmit: (data: { title: string; content: string }) => void | Promise<void>;
+  onSubmit?: (data: { title: string; content: string }) => void | Promise<void>;
   isLoading?: boolean;
   initialTitle?: string;
   initialContent?: string;
   submitLabel?: string;
+  onSuccess?: () => void;
 };
 
 const MAX_TITLE_LENGTH = 100;
@@ -52,14 +55,22 @@ function validateContent(content: string): string | null {
 
 export function CreatePostForm({
   onSubmit,
-  isLoading = false,
+  isLoading: externalLoading = false,
   initialTitle = "",
   initialContent = "",
   submitLabel = "Post",
+  onSuccess,
 }: CreatePostFormProps) {
   const [title, setTitle] = useState(initialTitle);
   const [content, setContent] = useState(initialContent);
   const [error, setError] = useState<string | null>(null);
+  const {
+    createPost,
+    isPending: isCreatingPost,
+    error: createError,
+  } = useCreatePost();
+
+  const isLoading = externalLoading || isCreatingPost;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,11 +89,21 @@ export function CreatePostForm({
     }
 
     try {
-      await onSubmit({ title: title.trim(), content: content.trim() });
+      if (onSubmit) {
+        await onSubmit({ title: title.trim(), content: content.trim() });
+      } else {
+        // Use hook to create post on-chain
+        await createPost(title.trim(), content.trim());
+        toast.success("Post created successfully!");
+      }
       setTitle("");
       setContent("");
+      onSuccess?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create post");
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to create post";
+      setError(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
@@ -110,7 +131,11 @@ export function CreatePostForm({
             />
             <div className="flex justify-between text-muted-foreground text-xs">
               <span>
-                {error && <span className="text-destructive">{error}</span>}
+                {(error || createError) && (
+                  <span className="text-destructive">
+                    {error || createError}
+                  </span>
+                )}
               </span>
               <span>
                 {titleLength}/{MAX_TITLE_LENGTH}

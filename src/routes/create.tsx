@@ -1,5 +1,6 @@
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { Heading } from "@radix-ui/themes";
+import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { CreatePostForm } from "@/components/CreatePostForm";
@@ -12,6 +13,7 @@ export const Route = createFileRoute("/create")({
 function CreatePostPage() {
   const currentAccount = useCurrentAccount();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   if (!currentAccount) {
     return (
@@ -20,6 +22,12 @@ function CreatePostPage() {
       </div>
     );
   }
+
+  const handleSuccess = () => {
+    // Invalidate posts query to refetch
+    queryClient.invalidateQueries({ queryKey: ["posts"] });
+    navigate({ to: "/" });
+  };
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 py-6">
@@ -33,14 +41,7 @@ function CreatePostPage() {
         <Heading size="8">Create New Post</Heading>
       </div>
 
-      <CreatePostForm
-        onSubmit={async (data) => {
-          // TODO: Implement create post logic
-          console.log("Creating post:", data);
-          // Navigate to home after successful creation
-          navigate({ to: "/" });
-        }}
-      />
+      <CreatePostForm onSuccess={handleSuccess} />
     </div>
   );
 }

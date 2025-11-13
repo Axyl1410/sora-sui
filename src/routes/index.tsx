@@ -1,8 +1,14 @@
 import { useCurrentAccount } from "@mysten/dapp-kit";
-import { Heading } from "@radix-ui/themes";
-import { createFileRoute } from "@tanstack/react-router";
+import { Heading, Text } from "@radix-ui/themes";
+import { useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import ClipLoader from "react-spinners/ClipLoader";
 import { CreatePostForm } from "@/components/CreatePostForm";
+import { CreateProfileDialog } from "@/components/CreateProfileDialog";
 import { PostList } from "@/components/PostList";
+import { Button } from "@/components/ui/button";
+import { useBlogRegistries, usePosts, useProfile } from "@/hooks/useBlog";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -10,30 +16,70 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const currentAccount = useCurrentAccount();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { data: posts, isLoading, error } = usePosts(50);
+  const { data: currentProfile, isLoading: profileLoading } = useProfile(
+    currentAccount?.address
+  );
+  const { data: registries } = useBlogRegistries();
+  const [showCreateProfile, setShowCreateProfile] = useState(false);
 
-  // Mock data - sẽ được thay thế bằng data thật từ contract
-  const mockPosts = [
-    {
-      id: "0x1",
-      author: "0x1234567890abcdef1234567890abcdef12345678",
-      authorName: "Alice",
-      title: "Welcome to Sui Blog!",
-      content:
-        "This is my first post on the Sui blockchain. Excited to share my thoughts with everyone!",
-      createdAt: Date.now() - 3_600_000, // 1 hour ago
-      updatedAt: Date.now() - 3_600_000,
-    },
-    {
-      id: "0x2",
-      author: "0xabcdef1234567890abcdef1234567890abcdef12",
-      authorName: "Bob",
-      title: "Building on Sui",
-      content:
-        "Sui is an amazing blockchain platform. The object model makes it so intuitive to build dApps!",
-      createdAt: Date.now() - 7_200_000, // 2 hours ago
-      updatedAt: Date.now() - 7_200_000,
-    },
-  ];
+  // Check if user needs to create profile
+  useEffect(() => {
+    if (
+      currentAccount &&
+      !profileLoading &&
+      !currentProfile &&
+      registries?.profileRegistry
+    ) {
+      // User is connected but doesn't have a profile
+      // Don't auto-show, let them click a button
+    }
+  }, [currentAccount, currentProfile, profileLoading, registries]);
+
+  // Get author names from profiles (simplified - in production, you'd want to cache this)
+  const postsWithNames =
+    posts?.map((post) => ({
+      ...post,
+      authorName:
+        post.author === currentAccount?.address
+          ? currentProfile?.name
+          : undefined,
+    })) ?? [];
+
+  const handlePostCreated = () => {
+    // Invalidate posts query to refetch
+    queryClient.invalidateQueries({ queryKey: ["posts"] });
+    queryClient.invalidateQueries({ queryKey: ["author-posts"] });
+    navigate({ to: "/" });
+  };
+
+  const handleProfileCreated = () => {
+    queryClient.invalidateQueries({ queryKey: ["profile"] });
+    setShowCreateProfile(false);
+  };
+
+  const shouldShowCreateProfile =
+    currentAccount && !currentProfile && !profileLoading;
+
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-6 py-6">
+        <div className="flex items-center justify-center py-12">
+          <ClipLoader size={32} />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-6 py-6">
+        <Text color="red">Error loading posts: {error.message}</Text>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 py-6">
@@ -42,12 +88,24 @@ function Index() {
       </div>
 
       {currentAccount && (
-        <CreatePostForm
-          onSubmit={(data) => {
-            // TODO: Implement create post logic
-            console.log("Creating post:", data);
-          }}
-        />
+        <>
+          {shouldShowCreateProfile && (
+            <div className="rounded-lg border bg-muted p-4 text-center">
+              <Text className="mb-2 block">
+                Create a profile to start posting
+              </Text>
+              <Button onClick={() => setShowCreateProfile(true)}>
+                Create Profile
+              </Button>
+            </div>
+          )}
+          {currentProfile && <CreatePostForm onSuccess={handlePostCreated} />}
+          <CreateProfileDialog
+            onOpenChange={setShowCreateProfile}
+            onSuccess={handleProfileCreated}
+            open={showCreateProfile}
+          />
+        </>
       )}
 
       <div>
@@ -57,7 +115,7 @@ function Index() {
         <PostList
           emptyMessage="No posts yet. Be the first to post!"
           isOwner={(author) => currentAccount?.address === author}
-          posts={mockPosts}
+          posts={postsWithNames}
         />
       </div>
     </div>

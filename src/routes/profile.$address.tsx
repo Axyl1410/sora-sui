@@ -1,8 +1,10 @@
 import { useCurrentAccount } from "@mysten/dapp-kit";
-import { Heading } from "@radix-ui/themes";
+import { Heading, Text } from "@radix-ui/themes";
 import { createFileRoute } from "@tanstack/react-router";
+import ClipLoader from "react-spinners/ClipLoader";
 import { PostList } from "@/components/PostList";
 import { ProfileHeader } from "@/components/ProfileHeader";
+import { useAuthorPosts, useProfile } from "@/hooks/useBlog";
 
 export const Route = createFileRoute("/profile/$address")({
   component: ProfilePage,
@@ -13,47 +15,52 @@ function ProfilePage() {
   const { address } = Route.useParams();
   const isOwnProfile = currentAccount?.address === address;
 
-  // Mock data - sẽ được thay thế bằng data thật từ contract
-  const mockProfile = {
-    address,
-    name: "Alice",
-    bio: "Blockchain enthusiast | Sui developer | Building the future of web3",
-    postCount: 2,
-    createdAt: Date.now() - 86_400_000 * 30, // 30 days ago
-  };
+  const {
+    data: profile,
+    isLoading: profileLoading,
+    error: profileError,
+  } = useProfile(address);
+  const {
+    data: posts,
+    isLoading: postsLoading,
+    error: postsError,
+  } = useAuthorPosts(address);
 
-  const mockPosts = [
-    {
-      id: "0x1",
-      author: address,
-      authorName: mockProfile.name,
-      title: "Welcome to Sui Blog!",
-      content:
-        "This is my first post on the Sui blockchain. Excited to share my thoughts with everyone!",
-      createdAt: Date.now() - 3_600_000,
-      updatedAt: Date.now() - 3_600_000,
-    },
-    {
-      id: "0x2",
-      author: address,
-      authorName: mockProfile.name,
-      title: "Building on Sui",
-      content:
-        "Sui is an amazing blockchain platform. The object model makes it so intuitive to build dApps!",
-      createdAt: Date.now() - 7_200_000,
-      updatedAt: Date.now() - 7_200_000,
-    },
-  ].filter((post) => post.author === address);
+  if (profileLoading || postsLoading) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-6 py-6">
+        <div className="flex items-center justify-center py-12">
+          <ClipLoader size={32} />
+        </div>
+      </div>
+    );
+  }
+
+  if (profileError || postsError) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-6 py-6">
+        <Text color="red">
+          Error loading profile: {profileError?.message || postsError?.message}
+        </Text>
+      </div>
+    );
+  }
+
+  const postsWithNames =
+    posts?.map((post) => ({
+      ...post,
+      authorName: profile?.name,
+    })) ?? [];
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 py-6">
       <ProfileHeader
         address={address}
-        bio={mockProfile.bio}
-        createdAt={mockProfile.createdAt}
+        bio={profile?.bio}
+        createdAt={profile?.createdAt}
         isOwnProfile={isOwnProfile}
-        name={mockProfile.name}
-        postCount={mockProfile.postCount}
+        name={profile?.name}
+        postCount={posts?.length ?? 0}
       />
 
       <div>
@@ -67,7 +74,7 @@ function ProfilePage() {
               : "This user hasn't posted anything yet."
           }
           isOwner={(author) => currentAccount?.address === author}
-          posts={mockPosts}
+          posts={postsWithNames}
         />
       </div>
     </div>

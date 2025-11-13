@@ -1,4 +1,8 @@
-import { ConnectButton, useCurrentAccount } from "@mysten/dapp-kit";
+import {
+  ConnectButton,
+  useAccounts,
+  useCurrentAccount,
+} from "@mysten/dapp-kit";
 import { Box, Flex, Heading } from "@radix-ui/themes";
 import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
@@ -7,6 +11,12 @@ import { Toaster } from "@/components/ui/sonner";
 
 const RootLayout = () => {
   const currentAccount = useCurrentAccount();
+  const accounts = useAccounts();
+
+  // Ensure we have the current account from accounts list
+  // This helps verify the account is properly connected
+  const activeAccount =
+    currentAccount || (accounts.length > 0 ? accounts[0] : null);
 
   return (
     <>
@@ -35,7 +45,7 @@ const RootLayout = () => {
                 <Home className="size-4" />
                 Home
               </Link>
-              {currentAccount && (
+              {activeAccount && (
                 <>
                   <Link
                     className="flex items-center gap-2 text-sm hover:underline [&.active]:font-bold"
@@ -46,7 +56,7 @@ const RootLayout = () => {
                   </Link>
                   <Link
                     className="flex items-center gap-2 text-sm hover:underline [&.active]:font-bold"
-                    params={{ address: currentAccount.address }}
+                    params={{ address: activeAccount.address }}
                     to="/profile/$address"
                   >
                     <User className="size-4" />
