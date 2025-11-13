@@ -10,7 +10,14 @@ import {
   useLocation,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
-import { ChevronsUpDown, Home, PlusCircle, Search, User } from "lucide-react";
+import {
+  ChevronsUpDown,
+  Home,
+  PlusCircle,
+  Search,
+  User,
+  Users,
+} from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -67,6 +74,17 @@ const RootLayout = () => {
   const isActive = (path: string) => {
     if (path === "/" && location.pathname === "/") {
       return true;
+    }
+    // Exact match for /profiles to avoid matching /profile
+    if (path === "/profiles") {
+      return location.pathname === "/profiles";
+    }
+    // For /profile, check if it starts with /profile/ (not /profiles)
+    if (path === "/profile") {
+      return (
+        location.pathname.startsWith("/profile/") &&
+        !location.pathname.startsWith("/profiles")
+      );
     }
     if (path !== "/" && location.pathname.startsWith(path)) {
       return true;
@@ -154,6 +172,19 @@ const RootLayout = () => {
                       <Link to="/">
                         <Search className="size-5" />
                         <span>Search</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive("/profiles")}
+                      tooltip="All Profiles"
+                    >
+                      <Link to="/profiles">
+                        <Users className="size-5" />
+                        <span>Profiles</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ProfilesRouteImport } from './routes/profiles'
 import { Route as CreateRouteImport } from './routes/create'
 import { Route as CounterRouteImport } from './routes/counter'
 import { Route as AboutRouteImport } from './routes/about'
@@ -16,6 +17,11 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProfileAddressRouteImport } from './routes/profile.$address'
 import { Route as PostIdRouteImport } from './routes/post.$id'
 
+const ProfilesRoute = ProfilesRouteImport.update({
+  id: '/profiles',
+  path: '/profiles',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CreateRoute = CreateRouteImport.update({
   id: '/create',
   path: '/create',
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/counter': typeof CounterRoute
   '/create': typeof CreateRoute
+  '/profiles': typeof ProfilesRoute
   '/post/$id': typeof PostIdRoute
   '/profile/$address': typeof ProfileAddressRoute
 }
@@ -60,6 +67,7 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/counter': typeof CounterRoute
   '/create': typeof CreateRoute
+  '/profiles': typeof ProfilesRoute
   '/post/$id': typeof PostIdRoute
   '/profile/$address': typeof ProfileAddressRoute
 }
@@ -69,6 +77,7 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/counter': typeof CounterRoute
   '/create': typeof CreateRoute
+  '/profiles': typeof ProfilesRoute
   '/post/$id': typeof PostIdRoute
   '/profile/$address': typeof ProfileAddressRoute
 }
@@ -79,6 +88,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/counter'
     | '/create'
+    | '/profiles'
     | '/post/$id'
     | '/profile/$address'
   fileRoutesByTo: FileRoutesByTo
@@ -87,6 +97,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/counter'
     | '/create'
+    | '/profiles'
     | '/post/$id'
     | '/profile/$address'
   id:
@@ -95,6 +106,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/counter'
     | '/create'
+    | '/profiles'
     | '/post/$id'
     | '/profile/$address'
   fileRoutesById: FileRoutesById
@@ -104,12 +116,20 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   CounterRoute: typeof CounterRoute
   CreateRoute: typeof CreateRoute
+  ProfilesRoute: typeof ProfilesRoute
   PostIdRoute: typeof PostIdRoute
   ProfileAddressRoute: typeof ProfileAddressRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/profiles': {
+      id: '/profiles'
+      path: '/profiles'
+      fullPath: '/profiles'
+      preLoaderRoute: typeof ProfilesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/create': {
       id: '/create'
       path: '/create'
@@ -160,6 +180,7 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   CounterRoute: CounterRoute,
   CreateRoute: CreateRoute,
+  ProfilesRoute: ProfilesRoute,
   PostIdRoute: PostIdRoute,
   ProfileAddressRoute: ProfileAddressRoute,
 }

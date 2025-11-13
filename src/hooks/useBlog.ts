@@ -3,7 +3,11 @@ import {
   useSuiClient,
   useSuiClientQuery,
 } from "@mysten/dapp-kit";
-import type { SuiObjectData } from "@mysten/sui/client";
+import type {
+  SuiClient,
+  SuiObjectData,
+  SuiObjectResponse,
+} from "@mysten/sui/client";
 import { Transaction } from "@mysten/sui/transactions";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -177,6 +181,90 @@ export function useBlogRegistries() {
       });
     },
     staleTime: Number.POSITIVE_INFINITY, // Registry IDs don't change
+  });
+}
+
+// Helper function to extract unique profile IDs from events
+function extractUniqueProfileIds(events: unknown[]): string[] {
+  const profileIdMap = new Map<string, string>();
+  for (const event of events) {
+    const parsed = event as {
+      parsedJson?: {
+        profile_id: string;
+        owner: string;
+      };
+    };
+    if (parsed.parsedJson) {
+      const { owner, profile_id } = parsed.parsedJson;
+      // Use owner as key to ensure uniqueness (one profile per address)
+      if (!profileIdMap.has(owner)) {
+        profileIdMap.set(owner, profile_id);
+      }
+    }
+  }
+  return Array.from(profileIdMap.values());
+}
+
+// Helper function to fetch profile objects
+async function fetchProfileObjects(
+  suiClient: SuiClient,
+  profileIds: string[]
+): Promise<Profile[]> {
+  const profilesData = await Promise.all(
+    profileIds.map((id) =>
+      suiClient
+        .getObject({
+          id,
+          options: { showContent: true, showOwner: true },
+        })
+        .then((res: SuiObjectResponse) => res.data ?? null)
+        .catch(() => null)
+    )
+  );
+
+  const profiles: Profile[] = [];
+  for (const data of profilesData) {
+    if (data) {
+      const profile = parseProfile(data);
+      if (profile) {
+        profiles.push(profile);
+      }
+    }
+  }
+  return profiles;
+}
+
+// Hook to get all profiles
+export function useAllProfiles(limit = 100) {
+  const blogPackageId = useNetworkVariable("blogPackageId");
+  const suiClient = useSuiClient();
+
+  return useQuery({
+    queryKey: ["all-profiles", blogPackageId, limit],
+    queryFn: async () => {
+      try {
+        const profileCreatedType = `${blogPackageId}::blog::ProfileCreated`;
+
+        // Query all ProfileCreated events
+        const events = await suiClient.queryEvents({
+          query: { MoveEventType: profileCreatedType },
+          limit,
+          order: "descending",
+        });
+
+        // Extract unique profile IDs
+        const profileIds = extractUniqueProfileIds(events.data);
+
+        // Fetch all profile objects
+        const profiles = await fetchProfileObjects(suiClient, profileIds);
+
+        // Sort by createdAt descending
+        return profiles.sort((a, b) => b.createdAt - a.createdAt);
+      } catch {
+        return [];
+      }
+    },
+    enabled: !!blogPackageId,
   });
 }
 
