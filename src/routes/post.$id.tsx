@@ -6,12 +6,15 @@ import {
   Edit,
   Heart,
   MessageCircle,
+  Pin,
   Share2,
   Trash2,
 } from "lucide-react";
 import { useState } from "react";
 import ClipLoader from "react-spinners/ClipLoader";
 import { toast } from "sonner";
+import { CommentForm } from "@/components/CommentForm";
+import { CommentList } from "@/components/CommentList";
 import { CreatePostForm } from "@/components/CreatePostForm";
 import {
   AlertDialog,
@@ -27,10 +30,17 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import type { Comment } from "@/hooks/useBlog";
 import {
+  useComments,
+  useDeleteComment,
   useDeletePost,
+  usePinnedPost,
+  usePinPost,
   usePost,
   useProfile,
+  useUnpinPost,
+  useUpdateComment,
   useUpdatePost,
 } from "@/hooks/useBlog";
 
@@ -48,8 +58,16 @@ function PostDetailPage() {
 
   const { data: post, isLoading: postLoading, error: postError } = usePost(id);
   const { data: authorProfile } = useProfile(post?.author);
+  const { data: comments } = useComments(id);
   const { updatePost, isPending: isUpdating } = useUpdatePost();
   const { deletePost, isPending: isDeleting } = useDeletePost();
+  const { updateComment } = useUpdateComment();
+  const { deleteComment } = useDeleteComment();
+  const { pinPost, isPending: isPinning } = usePinPost();
+  const { unpinPost, isPending: isUnpinning } = useUnpinPost();
+  const { data: authorProfileData } = useProfile(post?.author);
+  const { data: pinnedPost } = usePinnedPost(authorProfileData?.id);
+  const [editingComment, setEditingComment] = useState<Comment | null>(null);
 
   const isOwner = currentAccount?.address === post?.author;
   const isEdited = post ? post.updatedAt > post.createdAt : false;
@@ -233,6 +251,61 @@ function PostDetailPage() {
                 {/* Actions */}
                 {isOwner && (
                   <div className="flex items-center gap-1">
+                    {pinnedPost?.id === post.id ? (
+                      <Button
+                        disabled={isUnpinning}
+                        onClick={async () => {
+                          try {
+                            await unpinPost(authorProfileData!.id);
+                            toast.success("Post unpinned!");
+                            queryClient.invalidateQueries({
+                              queryKey: ["pinned-post"],
+                            });
+                            queryClient.invalidateQueries({
+                              queryKey: ["profile"],
+                            });
+                          } catch (err) {
+                            toast.error(
+                              err instanceof Error
+                                ? err.message
+                                : "Failed to unpin post"
+                            );
+                          }
+                        }}
+                        size="icon-sm"
+                        title="Unpin post"
+                        variant="ghost"
+                      >
+                        <Pin className="size-4 fill-current" />
+                      </Button>
+                    ) : (
+                      <Button
+                        disabled={isPinning}
+                        onClick={async () => {
+                          try {
+                            await pinPost(authorProfileData!.id, post.id);
+                            toast.success("Post pinned!");
+                            queryClient.invalidateQueries({
+                              queryKey: ["pinned-post"],
+                            });
+                            queryClient.invalidateQueries({
+                              queryKey: ["profile"],
+                            });
+                          } catch (err) {
+                            toast.error(
+                              err instanceof Error
+                                ? err.message
+                                : "Failed to pin post"
+                            );
+                          }
+                        }}
+                        size="icon-sm"
+                        title="Pin post"
+                        variant="ghost"
+                      >
+                        <Pin className="size-4" />
+                      </Button>
+                    )}
                     <Button
                       onClick={() => setIsEditing(true)}
                       size="icon-sm"
@@ -300,7 +373,7 @@ function PostDetailPage() {
                   variant="ghost"
                 >
                   <MessageCircle className="size-5 group-hover:fill-primary group-hover:text-primary" />
-                  <span className="text-sm">0</span>
+                  <span className="text-sm">{post.commentCount || 0}</span>
                 </Button>
 
                 <Button
@@ -309,7 +382,6 @@ function PostDetailPage() {
                   variant="ghost"
                 >
                   <Share2 className="size-5 group-hover:fill-green-500 group-hover:text-green-500" />
-                  <span className="text-sm">0</span>
                 </Button>
 
                 <Button
@@ -318,19 +390,67 @@ function PostDetailPage() {
                   variant="ghost"
                 >
                   <Heart className="size-5 group-hover:fill-red-500 group-hover:text-red-500" />
-                  <span className="text-sm">0</span>
+                  <span className="text-sm">{post.likeCount || 0}</span>
                 </Button>
               </div>
             </div>
           </div>
         </article>
 
-        {/* Comments section - placeholder */}
-        <div className="border-border border-b px-4 py-6">
-          <h2 className="mb-4 font-semibold text-lg">Comments</h2>
-          <p className="text-muted-foreground text-sm">
-            Comments feature coming soon...
-          </p>
+        {/* Comments section */}
+        <div className="border-border border-b">
+          <div className="border-border border-b px-4 py-3">
+            <h2 className="font-semibold text-lg">
+              Comments ({comments?.length || 0})
+            </h2>
+          </div>
+
+          {/* Comment Form */}
+          {!editingComment && (
+            <CommentForm
+              onSuccess={() => {
+                queryClient.invalidateQueries({ queryKey: ["comments", id] });
+                queryClient.invalidateQueries({ queryKey: ["post", id] });
+              }}
+              postId={id}
+            />
+          )}
+
+          {/* Edit Comment Form */}
+          {editingComment && (
+            <div className="border-border border-b">
+              <CommentForm
+                commentId={editingComment.id}
+                initialContent={editingComment.content}
+                onCancel={() => setEditingComment(null)}
+                onSuccess={() => {
+                  setEditingComment(null);
+                  queryClient.invalidateQueries({ queryKey: ["comments", id] });
+                }}
+                postId={id}
+              />
+            </div>
+          )}
+
+          {/* Comments List */}
+          <CommentList
+            comments={comments || []}
+            onDeleteComment={async (commentId) => {
+              try {
+                await deleteComment(id, commentId);
+                toast.success("Comment deleted successfully!");
+                queryClient.invalidateQueries({ queryKey: ["comments", id] });
+                queryClient.invalidateQueries({ queryKey: ["post", id] });
+              } catch (err) {
+                toast.error(
+                  err instanceof Error
+                    ? err.message
+                    : "Failed to delete comment"
+                );
+              }
+            }}
+            onEditComment={(comment) => setEditingComment(comment)}
+          />
         </div>
       </div>
     </div>

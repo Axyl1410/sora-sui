@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ProfilesRouteImport } from './routes/profiles'
 import { Route as CreateRouteImport } from './routes/create'
 import { Route as CounterRouteImport } from './routes/counter'
+import { Route as BookmarksRouteImport } from './routes/bookmarks'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProfileAddressRouteImport } from './routes/profile.$address'
@@ -30,6 +31,11 @@ const CreateRoute = CreateRouteImport.update({
 const CounterRoute = CounterRouteImport.update({
   id: '/counter',
   path: '/counter',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BookmarksRoute = BookmarksRouteImport.update({
+  id: '/bookmarks',
+  path: '/bookmarks',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutRoute = AboutRouteImport.update({
@@ -56,6 +62,7 @@ const PostIdRoute = PostIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/bookmarks': typeof BookmarksRoute
   '/counter': typeof CounterRoute
   '/create': typeof CreateRoute
   '/profiles': typeof ProfilesRoute
@@ -65,6 +72,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/bookmarks': typeof BookmarksRoute
   '/counter': typeof CounterRoute
   '/create': typeof CreateRoute
   '/profiles': typeof ProfilesRoute
@@ -75,6 +83,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/bookmarks': typeof BookmarksRoute
   '/counter': typeof CounterRoute
   '/create': typeof CreateRoute
   '/profiles': typeof ProfilesRoute
@@ -86,6 +95,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/about'
+    | '/bookmarks'
     | '/counter'
     | '/create'
     | '/profiles'
@@ -95,6 +105,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/about'
+    | '/bookmarks'
     | '/counter'
     | '/create'
     | '/profiles'
@@ -104,6 +115,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/about'
+    | '/bookmarks'
     | '/counter'
     | '/create'
     | '/profiles'
@@ -114,6 +126,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  BookmarksRoute: typeof BookmarksRoute
   CounterRoute: typeof CounterRoute
   CreateRoute: typeof CreateRoute
   ProfilesRoute: typeof ProfilesRoute
@@ -142,6 +155,13 @@ declare module '@tanstack/react-router' {
       path: '/counter'
       fullPath: '/counter'
       preLoaderRoute: typeof CounterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bookmarks': {
+      id: '/bookmarks'
+      path: '/bookmarks'
+      fullPath: '/bookmarks'
+      preLoaderRoute: typeof BookmarksRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -178,6 +198,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  BookmarksRoute: BookmarksRoute,
   CounterRoute: CounterRoute,
   CreateRoute: CreateRoute,
   ProfilesRoute: ProfilesRoute,

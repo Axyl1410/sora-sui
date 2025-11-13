@@ -11,6 +11,7 @@ import {
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import {
+  Bookmark,
   ChevronsUpDown,
   Home,
   PlusCircle,
@@ -161,6 +162,19 @@ const RootLayout = () => {
                           >
                             <User className="size-5" />
                             <span>Profile</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+
+                      <SidebarMenuItem>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive("/bookmarks")}
+                          tooltip="Bookmarks"
+                        >
+                          <Link to="/bookmarks">
+                            <Bookmark className="size-5" />
+                            <span>Bookmarks</span>
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>

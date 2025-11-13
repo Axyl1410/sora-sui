@@ -1,7 +1,16 @@
+import { useCurrentAccount } from "@mysten/dapp-kit";
 import { Link } from "@tanstack/react-router";
-import { Heart, MessageCircle, MoreHorizontal, Share2 } from "lucide-react";
+import { Bookmark, Heart, MessageCircle, MoreHorizontal } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  useBookmarkPost,
+  useHasLiked,
+  useIsBookmarked,
+  useLikePost,
+  useUnbookmarkPost,
+  useUnlikePost,
+} from "@/hooks/useBlog";
 
 type PostCardProps = {
   postId: string;
@@ -11,6 +20,8 @@ type PostCardProps = {
   content: string;
   createdAt: number;
   updatedAt: number;
+  likeCount?: number;
+  commentCount?: number;
   isOwner?: boolean;
   onDelete?: () => void;
 };
@@ -23,9 +34,51 @@ export function PostCard({
   content,
   createdAt,
   updatedAt,
+  likeCount = 0,
+  commentCount = 0,
   isOwner = false,
   onDelete,
 }: PostCardProps) {
+  const currentAccount = useCurrentAccount();
+  const userAddress = currentAccount?.address;
+  const { data: hasLiked } = useHasLiked(postId, userAddress);
+  const { data: isBookmarked } = useIsBookmarked(postId, userAddress);
+  const { likePost, isPending: isLiking } = useLikePost();
+  const { unlikePost, isPending: isUnliking } = useUnlikePost();
+  const { bookmarkPost, isPending: isBookmarking } = useBookmarkPost();
+  const { unbookmarkPost, isPending: isUnbookmarking } = useUnbookmarkPost();
+
+  const handleLike = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!userAddress) return;
+
+    try {
+      if (hasLiked) {
+        await unlikePost(postId);
+      } else {
+        await likePost(postId);
+      }
+    } catch (error) {
+      console.error("Error toggling like:", error);
+    }
+  };
+
+  const handleBookmark = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!userAddress) return;
+
+    try {
+      if (isBookmarked) {
+        await unbookmarkPost(postId);
+      } else {
+        await bookmarkPost(postId);
+      }
+    } catch (error) {
+      console.error("Error toggling bookmark:", error);
+    }
+  };
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -129,31 +182,39 @@ export function PostCard({
             <Button
               asChild
               className="group h-7 gap-1.5 px-1 hover:text-primary"
+              disabled={!userAddress}
               size="sm"
               variant="ghost"
             >
               <Link params={{ id: postId }} to="/post/$id">
                 <MessageCircle className="size-4 group-hover:fill-primary group-hover:text-primary" />
-                <span className="text-xs">0</span>
+                <span className="text-xs">{commentCount}</span>
               </Link>
             </Button>
 
             <Button
-              className="group h-7 gap-1.5 px-1 hover:text-green-500"
+              className={`group h-7 gap-1.5 px-1 hover:text-green-500 ${isBookmarked ? "text-green-500" : ""}`}
+              disabled={!userAddress || isBookmarking || isUnbookmarking}
+              onClick={handleBookmark}
               size="sm"
               variant="ghost"
             >
-              <Share2 className="size-4 group-hover:fill-green-500 group-hover:text-green-500" />
-              <span className="text-xs">0</span>
+              <Bookmark
+                className={`size-4 ${isBookmarked ? "fill-green-500 text-green-500" : ""} group-hover:fill-green-500 group-hover:text-green-500`}
+              />
             </Button>
 
             <Button
-              className="group h-7 gap-1.5 px-1 hover:text-red-500"
+              className={`group h-7 gap-1.5 px-1 hover:text-red-500 ${hasLiked ? "text-red-500" : ""}`}
+              disabled={!userAddress || isLiking || isUnliking}
+              onClick={handleLike}
               size="sm"
               variant="ghost"
             >
-              <Heart className="size-4 group-hover:fill-red-500 group-hover:text-red-500" />
-              <span className="text-xs">0</span>
+              <Heart
+                className={`size-4 ${hasLiked ? "fill-red-500 text-red-500" : ""} group-hover:fill-red-500 group-hover:text-red-500`}
+              />
+              <span className="text-xs">{likeCount}</span>
             </Button>
 
             {isOwner && onDelete && (

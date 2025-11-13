@@ -9,6 +9,8 @@ type Post = {
   content: string;
   createdAt: number;
   updatedAt: number;
+  likeCount?: number;
+  commentCount?: number;
 };
 
 type PostListProps = {
@@ -39,10 +41,12 @@ export function PostList({
         <PostCard
           author={post.author}
           authorName={post.authorName}
+          commentCount={post.commentCount}
           content={post.content}
           createdAt={post.createdAt}
           isOwner={isOwner?.(post.author) ?? false}
           key={post.id}
+          likeCount={post.likeCount}
           onDelete={onDelete ? () => onDelete(post.id) : undefined}
           postId={post.id}
           title={post.title}

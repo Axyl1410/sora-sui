@@ -1,6 +1,18 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,7 +24,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useUpdateProfileBio, useUpdateProfileName } from "@/hooks/useBlog";
+import {
+  useDeleteProfile,
+  useUpdateProfileBio,
+  useUpdateProfileName,
+} from "@/hooks/useBlog";
 
 type EditProfileDialogProps = {
   open: boolean;
@@ -49,6 +65,9 @@ export function EditProfileDialog({
     isPending: isUpdatingBio,
     error: bioError,
   } = useUpdateProfileBio();
+  const { deleteProfile, isPending: isDeleting } = useDeleteProfile();
+  const navigate = useNavigate();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Update form when initial values change
   useEffect(() => {
@@ -171,21 +190,82 @@ export function EditProfileDialog({
               <div className="text-destructive text-sm">{displayError}</div>
             )}
 
-            <DialogFooter>
-              <Button
-                disabled={isPending}
-                onClick={() => onOpenChange(false)}
-                type="button"
-                variant="outline"
-              >
-                Cancel
-              </Button>
-              <Button
-                disabled={isPending || !hasChanges || !name.trim()}
-                type="submit"
-              >
-                {isPending ? "Updating..." : "Save Changes"}
-              </Button>
+            <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
+              <div className="flex w-full items-center justify-between sm:w-auto">
+                <AlertDialog
+                  onOpenChange={setShowDeleteDialog}
+                  open={showDeleteDialog}
+                >
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      className="text-destructive hover:text-destructive"
+                      disabled={isPending || isDeleting}
+                      type="button"
+                      variant="ghost"
+                    >
+                      Delete Profile
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Profile</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete your profile? This
+                        action cannot be undone. All your posts and data will be
+                        permanently deleted.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel disabled={isDeleting}>
+                        Cancel
+                      </AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        disabled={isDeleting}
+                        onClick={async () => {
+                          try {
+                            await deleteProfile(profileId);
+                            toast.success("Profile deleted successfully!");
+                            queryClient.invalidateQueries({
+                              queryKey: ["profile"],
+                            });
+                            queryClient.invalidateQueries({
+                              queryKey: ["all-profiles"],
+                            });
+                            setShowDeleteDialog(false);
+                            onOpenChange(false);
+                            navigate({ to: "/" });
+                          } catch (err) {
+                            toast.error(
+                              err instanceof Error
+                                ? err.message
+                                : "Failed to delete profile"
+                            );
+                          }
+                        }}
+                      >
+                        {isDeleting ? "Deleting..." : "Delete"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  disabled={isPending}
+                  onClick={() => onOpenChange(false)}
+                  type="button"
+                  variant="outline"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  disabled={isPending || !hasChanges || !name.trim()}
+                  type="submit"
+                >
+                  {isPending ? "Updating..." : "Save Changes"}
+                </Button>
+              </div>
             </DialogFooter>
           </div>
         </form>

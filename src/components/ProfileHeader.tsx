@@ -1,9 +1,16 @@
 import { useCurrentAccount } from "@mysten/dapp-kit";
-import { Calendar, Edit } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Calendar, Edit, UserMinus, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { EditProfileDialog } from "@/components/EditProfileDialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  useFollowUser,
+  useIsFollowing,
+  useProfile,
+  useUnfollowUser,
+} from "@/hooks/useBlog";
 
 type ProfileHeaderProps = {
   address: string;
@@ -11,6 +18,8 @@ type ProfileHeaderProps = {
   bio?: string;
   postCount?: number;
   createdAt?: number;
+  followerCount?: number;
+  followingCount?: number;
   isOwnProfile?: boolean;
   profileId?: string;
 };
@@ -21,11 +30,42 @@ export function ProfileHeader({
   bio,
   postCount = 0,
   createdAt,
+  followerCount = 0,
+  followingCount = 0,
   profileId,
 }: ProfileHeaderProps) {
   const currentAccount = useCurrentAccount();
   const isCurrentUser = currentAccount?.address === address;
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const queryClient = useQueryClient();
+
+  // Get current user's profile to get profile ID for follow/unfollow
+  const { data: currentUserProfile } = useProfile(currentAccount?.address);
+  const { data: isFollowing } = useIsFollowing(
+    currentAccount?.address,
+    address
+  );
+  const { followUser, isPending: isFollowingPending } = useFollowUser();
+  const { unfollowUser, isPending: isUnfollowingPending } = useUnfollowUser();
+
+  const handleFollow = async () => {
+    if (!(currentUserProfile?.id && profileId)) return;
+
+    try {
+      if (isFollowing) {
+        await unfollowUser(currentUserProfile.id, profileId);
+      } else {
+        await followUser(currentUserProfile.id, profileId);
+      }
+      queryClient.invalidateQueries({ queryKey: ["profile", address] });
+      queryClient.invalidateQueries({
+        queryKey: ["profile", currentAccount?.address],
+      });
+      queryClient.invalidateQueries({ queryKey: ["is-following"] });
+    } catch (error) {
+      console.error("Error toggling follow:", error);
+    }
+  };
 
   const getInitials = (profileName?: string, profileAddress?: string) => {
     if (profileName) {
@@ -111,7 +151,42 @@ export function ProfileHeader({
                 {postCount === 1 ? "Post" : "Posts"}
               </span>
             </div>
+            <div className="flex items-center gap-1">
+              <span className="font-semibold">{followerCount}</span>
+              <span className="text-muted-foreground">
+                {followerCount === 1 ? "Follower" : "Followers"}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="font-semibold">{followingCount}</span>
+              <span className="text-muted-foreground">Following</span>
+            </div>
           </div>
+
+          {/* Follow/Unfollow Button */}
+          {!isCurrentUser && currentAccount && currentUserProfile && (
+            <div className="mt-4">
+              <Button
+                className="rounded-full"
+                disabled={isFollowingPending || isUnfollowingPending}
+                onClick={handleFollow}
+                size="sm"
+                variant={isFollowing ? "outline" : "default"}
+              >
+                {isFollowing ? (
+                  <>
+                    <UserMinus className="mr-2 size-4" />
+                    Unfollow
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="mr-2 size-4" />
+                    Follow
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 

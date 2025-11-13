@@ -1,11 +1,18 @@
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { createFileRoute } from "@tanstack/react-router";
+import { Pin } from "lucide-react";
 import ClipLoader from "react-spinners/ClipLoader";
 import { PostList } from "@/components/PostList";
 import { ProfileHeader } from "@/components/ProfileHeader";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAuthorPosts, useProfile } from "@/hooks/useBlog";
+import {
+  useAuthorPosts,
+  useLikedPosts,
+  usePinnedPost,
+  useProfile,
+  useUserComments,
+} from "@/hooks/useBlog";
 
 export const Route = createFileRoute("/profile/$address")({
   component: ProfilePage,
@@ -26,6 +33,9 @@ function ProfilePage() {
     isLoading: postsLoading,
     error: postsError,
   } = useAuthorPosts(address);
+  const { data: pinnedPost } = usePinnedPost(profile?.id);
+  const { data: likedPosts } = useLikedPosts(address);
+  const { data: userComments } = useUserComments(address);
 
   if (profileLoading || postsLoading) {
     return (
@@ -45,11 +55,38 @@ function ProfilePage() {
     );
   }
 
-  const postsWithNames =
-    posts?.map((post) => ({
+  // Separate pinned post from regular posts
+  const regularPosts =
+    posts?.filter((post) => post.id !== pinnedPost?.id) ?? [];
+  const postsWithNames = regularPosts.map((post) => ({
+    ...post,
+    authorName: profile?.name,
+  }));
+  const pinnedPostWithName = pinnedPost
+    ? { ...pinnedPost, authorName: profile?.name }
+    : null;
+  const likedPostsWithNames =
+    likedPosts?.map((post) => ({
       ...post,
       authorName: profile?.name,
     })) ?? [];
+
+  // Combine posts and comments for "Posts & replies" tab
+  const postsAndReplies = [
+    ...(postsWithNames || []),
+    ...(userComments?.map((comment) => ({
+      id: comment.id,
+      author: comment.author,
+      authorName: profile?.name,
+      title: "Comment on post",
+      content: comment.content,
+      createdAt: comment.createdAt,
+      updatedAt: comment.updatedAt,
+      likeCount: 0,
+      commentCount: 0,
+      postId: comment.postId,
+    })) || []),
+  ].sort((a, b) => b.createdAt - a.createdAt);
 
   return (
     <div className="flex h-full flex-col">
@@ -69,6 +106,8 @@ function ProfilePage() {
           address={address}
           bio={profile.bio}
           createdAt={profile.createdAt}
+          followerCount={profile.followerCount}
+          followingCount={profile.followingCount}
           isOwnProfile={isOwnProfile}
           name={profile.name}
           postCount={posts?.length ?? 0}
@@ -86,7 +125,6 @@ function ProfilePage() {
             </TabsTrigger>
             <TabsTrigger
               className="rounded-none border-transparent border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent"
-              disabled
               value="replies"
             >
               Posts & replies
@@ -100,7 +138,6 @@ function ProfilePage() {
             </TabsTrigger>
             <TabsTrigger
               className="rounded-none border-transparent border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent"
-              disabled
               value="likes"
             >
               Likes
@@ -108,6 +145,22 @@ function ProfilePage() {
           </TabsList>
 
           <TabsContent className="mt-0" value="posts">
+            {/* Pinned Post */}
+            {pinnedPostWithName && (
+              <div className="border-border border-b">
+                <div className="flex items-center gap-2 border-border border-b px-4 py-2 text-muted-foreground">
+                  <Pin className="size-4" />
+                  <span className="font-medium text-sm">Pinned</span>
+                </div>
+                <PostList
+                  emptyMessage=""
+                  isOwner={(author) => currentAccount?.address === author}
+                  posts={[pinnedPostWithName]}
+                />
+              </div>
+            )}
+
+            {/* Regular Posts */}
             <PostList
               emptyMessage={
                 isOwnProfile
@@ -116,6 +169,30 @@ function ProfilePage() {
               }
               isOwner={(author) => currentAccount?.address === author}
               posts={postsWithNames}
+            />
+          </TabsContent>
+
+          <TabsContent className="mt-0" value="replies">
+            <PostList
+              emptyMessage={
+                isOwnProfile
+                  ? "You haven't posted or replied to anything yet."
+                  : "This user hasn't posted or replied to anything yet."
+              }
+              isOwner={(author) => currentAccount?.address === author}
+              posts={postsAndReplies}
+            />
+          </TabsContent>
+
+          <TabsContent className="mt-0" value="likes">
+            <PostList
+              emptyMessage={
+                isOwnProfile
+                  ? "You haven't liked any posts yet."
+                  : "This user hasn't liked any posts yet."
+              }
+              isOwner={(author) => currentAccount?.address === author}
+              posts={likedPostsWithNames}
             />
           </TabsContent>
         </Tabs>
