@@ -35,10 +35,13 @@ import {
   useComments,
   useDeleteComment,
   useDeletePost,
+  useHasLiked,
+  useLikePost,
   usePinnedPost,
   usePinPost,
   usePost,
   useProfile,
+  useUnlikePost,
   useUnpinPost,
   useUpdatePost,
 } from "@/hooks/useBlog";
@@ -67,6 +70,12 @@ function PostDetailPage() {
   const { data: authorProfileData } = useProfile(post?.author);
   const { data: pinnedPost } = usePinnedPost(authorProfileData?.id);
   const [editingComment, setEditingComment] = useState<Comment | null>(null);
+  const { likePost, isPending: isLiking } = useLikePost();
+  const { unlikePost, isPending: isUnliking } = useUnlikePost();
+  const { data: hasLiked = false } = useHasLiked(
+    post?.id,
+    currentAccount?.address
+  );
 
   const isOwner = currentAccount?.address === post?.author;
   const isEdited = post ? post.updatedAt > post.createdAt : false;
@@ -105,6 +114,24 @@ function PostDetailPage() {
       return address.slice(2, 4).toUpperCase();
     }
     return "??";
+  };
+
+  const handleToggleLike = async () => {
+    if (!(post && currentAccount?.address)) {
+      return;
+    }
+
+    try {
+      if (hasLiked) {
+        await unlikePost(post.id);
+      } else {
+        await likePost(post.id);
+      }
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to update like status"
+      );
+    }
   };
 
   const handleUpdate = async (data: { title: string; content: string }) => {
@@ -384,11 +411,15 @@ function PostDetailPage() {
                 </Button>
 
                 <Button
-                  className="group gap-2 hover:text-red-500"
+                  className={`group gap-2 hover:text-red-500 ${hasLiked ? "text-red-500" : ""}`}
+                  disabled={!currentAccount || isLiking || isUnliking}
+                  onClick={handleToggleLike}
                   size="sm"
                   variant="ghost"
                 >
-                  <Heart className="size-5 group-hover:fill-red-500 group-hover:text-red-500" />
+                  <Heart
+                    className={`size-5 ${hasLiked ? "fill-red-500 text-red-500" : ""} group-hover:fill-red-500 group-hover:text-red-500`}
+                  />
                   <span className="text-sm">{post.likeCount || 0}</span>
                 </Button>
               </div>

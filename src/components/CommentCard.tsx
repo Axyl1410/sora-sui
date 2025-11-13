@@ -6,11 +6,14 @@ import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import type { Comment } from "@/hooks/useBlog";
 import { useProfile } from "@/hooks/useBlog";
 
@@ -102,55 +105,67 @@ export function CommentCard({ comment, onEdit, onDelete }: CommentCardProps) {
 
             {/* More Actions */}
             {isOwner && (onEdit || onDelete) && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
+              <Dialog>
+                <DialogTrigger asChild>
                   <Button
                     className="h-6 rounded-full px-1"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                    }}
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                    }}
                     size="icon-sm"
                     variant="ghost"
                   >
                     <MoreVertical className="size-3.5" />
                   </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  onCloseAutoFocus={(e) => {
-                    e.preventDefault();
-                  }}
-                >
-                  {onEdit && (
-                    <DropdownMenuItem
-                      onSelect={(e) => {
-                        e.preventDefault();
-                        onEdit(comment);
-                      }}
-                    >
-                      <Pencil className="mr-2 size-4" />
-                      Edit
-                    </DropdownMenuItem>
-                  )}
-                  {onDelete && (
-                    <DropdownMenuItem
-                      className="text-destructive"
-                      onSelect={(e) => {
-                        e.preventDefault();
-                        onDelete(comment.id);
-                      }}
-                    >
-                      <Trash2 className="mr-2 size-4" />
-                      Delete
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-sm">
+                  <DialogHeader>
+                    <DialogTitle>Comment Options</DialogTitle>
+                    <DialogDescription>
+                      Choose an action for this comment
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-3 py-4">
+                    {onEdit && (
+                      <DialogClose asChild>
+                        <Button
+                          className="h-auto justify-start gap-3 px-4 py-3 text-left"
+                          onClick={() => onEdit(comment)}
+                          variant="outline"
+                        >
+                          <div className="flex size-8 items-center justify-center rounded-md bg-primary/10">
+                            <Pencil className="size-4 text-primary" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-medium">Edit Comment</div>
+                            <div className="text-muted-foreground text-xs">
+                              Modify your comment content
+                            </div>
+                          </div>
+                        </Button>
+                      </DialogClose>
+                    )}
+                    {onDelete && (
+                      <DialogClose asChild>
+                        <Button
+                          className="h-auto justify-start gap-3 px-4 py-3 text-left"
+                          onClick={() => onDelete(comment.id)}
+                          variant="outline"
+                        >
+                          <div className="flex size-8 items-center justify-center rounded-md bg-destructive/10">
+                            <Trash2 className="size-4 text-destructive" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-medium text-destructive">
+                              Delete Comment
+                            </div>
+                            <div className="text-muted-foreground text-xs">
+                              This action cannot be undone
+                            </div>
+                          </div>
+                        </Button>
+                      </DialogClose>
+                    )}
+                  </div>
+                </DialogContent>
+              </Dialog>
             )}
           </div>
 

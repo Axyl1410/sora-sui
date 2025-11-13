@@ -13,19 +13,25 @@ import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import {
   Bookmark,
   ChevronsUpDown,
+  Copy,
   Home,
   PlusCircle,
   Search,
   User,
   Users,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Sidebar,
@@ -211,12 +217,9 @@ const RootLayout = () => {
             {activeAccount ? (
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <SidebarMenuButton
-                        className="w-full data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-                        size="lg"
-                      >
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <SidebarMenuButton className="w-full" size="lg">
                         <Avatar className="h-8 w-8 shrink-0 rounded-lg">
                           <AvatarFallback className="rounded-lg">
                             {getInitials(
@@ -236,37 +239,63 @@ const RootLayout = () => {
                         </div>
                         <ChevronsUpDown className="ml-auto size-4 shrink-0" />
                       </SidebarMenuButton>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      align="end"
-                      className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-                      side="right"
-                      sideOffset={4}
-                    >
-                      <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                        <Avatar className="h-8 w-8 rounded-lg">
-                          <AvatarFallback className="rounded-lg">
-                            {getInitials(
-                              currentProfile?.name,
-                              activeAccount.address
-                            )}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="grid flex-1 text-left text-sm leading-tight">
-                          <span className="truncate font-medium">
-                            {displayName}
-                          </span>
-                          <span className="truncate text-xs">
-                            {activeAccount.address.slice(0, 8)}...
-                            {activeAccount.address.slice(-6)}
-                          </span>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-sm">
+                      <DialogHeader>
+                        <DialogTitle>Account details</DialogTitle>
+                        <DialogDescription>
+                          Review your connected wallet information.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-3 rounded-lg border bg-muted/20 p-4">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10 shrink-0 rounded-lg">
+                            <AvatarFallback className="rounded-lg">
+                              {getInitials(
+                                currentProfile?.name,
+                                activeAccount.address
+                              )}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-medium text-base">
+                              {displayName}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 rounded-md bg-background px-3 py-2">
+                          <p className="min-w-0 flex-1 break-all font-mono text-muted-foreground text-xs">
+                            {activeAccount.address}
+                          </p>
+                          <Button
+                            className="h-7 shrink-0"
+                            onClick={async () => {
+                              try {
+                                await navigator.clipboard.writeText(
+                                  activeAccount.address
+                                );
+                                toast.success("Address copied to clipboard");
+                              } catch {
+                                toast.error("Failed to copy address");
+                              }
+                            }}
+                            size="icon-sm"
+                            variant="ghost"
+                          >
+                            <Copy className="size-3.5" />
+                          </Button>
                         </div>
                       </div>
-                      <div className="mt-2">
-                        <ConnectButton />
+                      <div className="mt-4 space-y-2">
+                        <p className="text-muted-foreground text-xs">
+                          Switch or disconnect your wallet
+                        </p>
+                        <div className="overflow-hidden rounded-lg border bg-background">
+                          <ConnectButton />
+                        </div>
                       </div>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                    </DialogContent>
+                  </Dialog>
                 </SidebarMenuItem>
               </SidebarMenu>
             ) : (
