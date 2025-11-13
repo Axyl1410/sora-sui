@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import { Heart, MessageCircle, MoreHorizontal, Share2 } from "lucide-react";
-import type { ReactNode } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 
@@ -14,7 +13,6 @@ type PostCardProps = {
   updatedAt: number;
   isOwner?: boolean;
   onDelete?: () => void;
-  actions?: ReactNode;
 };
 
 export function PostCard({
@@ -27,7 +25,6 @@ export function PostCard({
   updatedAt,
   isOwner = false,
   onDelete,
-  actions,
 }: PostCardProps) {
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -70,92 +67,98 @@ export function PostCard({
   const isEdited = updatedAt > createdAt;
 
   return (
-    <article className="border-border border-b px-4 py-3 transition-colors hover:bg-accent/50">
-      <div className="flex gap-3">
+    <article className="border-border border-b px-4 py-2 transition-colors hover:bg-accent/50">
+      <div className="flex gap-2">
         {/* Avatar */}
         <Link params={{ address: author }} to="/profile/$address">
-          <Avatar className="size-10 flex-shrink-0 cursor-pointer transition-opacity hover:opacity-80">
-            <AvatarFallback>{getInitials(authorName, author)}</AvatarFallback>
+          <Avatar className="size-9 shrink-0 cursor-pointer transition-opacity hover:opacity-80">
+            <AvatarFallback className="text-xs">
+              {getInitials(authorName, author)}
+            </AvatarFallback>
           </Avatar>
         </Link>
 
         {/* Content */}
         <div className="min-w-0 flex-1">
           {/* Header */}
-          <div className="mb-1 flex items-start justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-1">
+          <div className="mb-0.5 flex items-start justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-0.5">
               <Link
-                className="font-semibold hover:underline"
+                className="font-semibold text-sm hover:underline"
                 params={{ address: author }}
                 to="/profile/$address"
               >
                 {displayName}
               </Link>
-              <span className="text-muted-foreground text-sm">
-                @{author.slice(0, 8)}...
+              <span className="text-muted-foreground text-xs">
+                @{author.slice(0, 6)}...
               </span>
-              <span className="text-muted-foreground text-sm">·</span>
-              <span className="text-muted-foreground text-sm">
+              <span className="text-muted-foreground text-xs">·</span>
+              <span className="text-muted-foreground text-xs">
                 {formatDate(createdAt)}
                 {isEdited && " · Edited"}
               </span>
             </div>
 
             {/* More Actions */}
-            <Button className="rounded-full" size="icon-sm" variant="ghost">
-              <MoreHorizontal className="size-4" />
+            <Button
+              className="h-6 rounded-full px-1"
+              size="icon-sm"
+              variant="ghost"
+            >
+              <MoreHorizontal className="size-3.5" />
             </Button>
           </div>
 
           {/* Title & Content */}
           <Link params={{ id: postId }} to="/post/$id">
-            <div className="mb-3 space-y-2">
+            <div className="mb-1.5 space-y-1">
               {title && (
-                <h3 className="font-semibold text-base hover:underline">
+                <h3 className="font-semibold text-sm hover:underline">
                   {title}
                 </h3>
               )}
-              <p className="whitespace-pre-wrap break-words text-base">
+              <p className="wrap-break-word whitespace-pre-wrap text-sm leading-relaxed">
                 {content}
               </p>
             </div>
           </Link>
 
           {/* Engagement Buttons */}
-          <div className="flex items-center gap-8 text-muted-foreground">
+          <div className="flex items-center gap-6 text-muted-foreground">
             <Button
               asChild
-              className="group gap-2 hover:text-primary"
+              className="group h-7 gap-1.5 px-1 hover:text-primary"
               size="sm"
               variant="ghost"
             >
               <Link params={{ id: postId }} to="/post/$id">
-                <MessageCircle className="size-5 group-hover:fill-primary group-hover:text-primary" />
-                <span className="text-sm">0</span>
+                <MessageCircle className="size-4 group-hover:fill-primary group-hover:text-primary" />
+                <span className="text-xs">0</span>
               </Link>
             </Button>
 
             <Button
-              className="group gap-2 hover:text-green-500"
+              className="group h-7 gap-1.5 px-1 hover:text-green-500"
               size="sm"
               variant="ghost"
             >
-              <Share2 className="size-5 group-hover:fill-green-500 group-hover:text-green-500" />
-              <span className="text-sm">0</span>
+              <Share2 className="size-4 group-hover:fill-green-500 group-hover:text-green-500" />
+              <span className="text-xs">0</span>
             </Button>
 
             <Button
-              className="group gap-2 hover:text-red-500"
+              className="group h-7 gap-1.5 px-1 hover:text-red-500"
               size="sm"
               variant="ghost"
             >
-              <Heart className="size-5 group-hover:fill-red-500 group-hover:text-red-500" />
-              <span className="text-sm">0</span>
+              <Heart className="size-4 group-hover:fill-red-500 group-hover:text-red-500" />
+              <span className="text-xs">0</span>
             </Button>
 
             {isOwner && onDelete && (
               <Button
-                className="text-destructive hover:text-destructive"
+                className="h-7 px-1 text-destructive text-xs hover:text-destructive"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();

@@ -1,10 +1,9 @@
 import { useCurrentAccount } from "@mysten/dapp-kit";
-import { Edit, User } from "lucide-react";
+import { Calendar, Edit } from "lucide-react";
 import { useState } from "react";
 import { EditProfileDialog } from "@/components/EditProfileDialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 
 type ProfileHeaderProps = {
   address: string;
@@ -22,93 +21,101 @@ export function ProfileHeader({
   bio,
   postCount = 0,
   createdAt,
-  isOwnProfile = false,
   profileId,
 }: ProfileHeaderProps) {
   const currentAccount = useCurrentAccount();
   const isCurrentUser = currentAccount?.address === address;
   const [showEditDialog, setShowEditDialog] = useState(false);
 
-  const getInitials = (name?: string, address?: string) => {
-    if (name) {
-      return name
+  const getInitials = (profileName?: string, profileAddress?: string) => {
+    if (profileName) {
+      return profileName
         .split(" ")
         .map((n) => n[0])
         .join("")
         .toUpperCase()
         .slice(0, 2);
     }
-    if (address) {
-      return address.slice(2, 4).toUpperCase();
+    if (profileAddress) {
+      return profileAddress.slice(2, 4).toUpperCase();
     }
     return "??";
   };
 
   const displayName = name || `${address.slice(0, 6)}...${address.slice(-4)}`;
-  const displayAddress = `${address.slice(0, 6)}...${address.slice(-4)}`;
+  const displayHandle = `@${address.slice(0, 8)}...${address.slice(-6)}`;
 
   return (
-    <Card>
-      <CardContent className="p-6">
-        <div className="flex flex-col gap-4 sm:flex-row">
-          {/* Avatar */}
-          <div className="shrink-0">
-            <Avatar className="size-20 sm:size-24">
-              <AvatarFallback className="text-2xl">
-                {getInitials(name, address)}
-              </AvatarFallback>
-            </Avatar>
+    <div className="flex flex-col">
+      {/* Banner */}
+      <div className="h-48 bg-gradient-to-r from-blue-400 to-blue-600" />
+
+      {/* Profile Section */}
+      <div className="relative px-4 pb-4">
+        {/* Avatar - Overlapping Banner */}
+        <div className="-mt-20 mb-4 md:mb-0">
+          <Avatar className="size-32 border-4 border-background">
+            <AvatarFallback className="text-3xl">
+              {getInitials(name, address)}
+            </AvatarFallback>
+          </Avatar>
+        </div>
+
+        {/* Edit Profile Button */}
+        {isCurrentUser && profileId && (
+          <div className="mb-4 flex justify-end md:mb-0">
+            <Button
+              className="rounded-full"
+              onClick={() => setShowEditDialog(true)}
+              size="sm"
+              variant="outline"
+            >
+              <Edit className="mr-2 size-4" />
+              Edit Profile
+            </Button>
+          </div>
+        )}
+
+        {/* Profile Info */}
+        <div className="space-y-3">
+          <div>
+            <h1 className="font-bold text-2xl">{displayName}</h1>
+            <p className="text-muted-foreground text-sm">{displayHandle}</p>
           </div>
 
-          {/* Info */}
-          <div className="min-w-0 flex-1">
-            <div className="mb-2 flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <h1 className="mb-1 truncate font-bold text-2xl">
-                  {displayName}
-                </h1>
-                <p className="font-mono text-muted-foreground text-sm">
-                  {displayAddress}
-                </p>
-              </div>
+          {bio && (
+            <p className="wrap-break-word whitespace-pre-wrap text-sm">{bio}</p>
+          )}
 
-              {isCurrentUser && profileId && (
-                <Button
-                  onClick={() => setShowEditDialog(true)}
-                  size="sm"
-                  variant="outline"
-                >
-                  <Edit className="mr-2 size-4" />
-                  Edit Profile
-                </Button>
-              )}
-            </div>
-
-            {bio && (
-              <p className="mb-4 whitespace-pre-wrap break-words text-muted-foreground text-sm">
-                {bio}
-              </p>
-            )}
-
-            {/* Stats */}
-            <div className="flex items-center gap-6 text-sm">
-              <div className="flex items-center gap-2">
-                <User className="size-4 text-muted-foreground" />
-                <span className="font-semibold">{postCount}</span>
-                <span className="text-muted-foreground">
-                  {postCount === 1 ? "Post" : "Posts"}
+          {/* Additional Info */}
+          <div className="flex flex-wrap items-center gap-4 text-muted-foreground text-sm">
+            {createdAt && (
+              <div className="flex items-center gap-1">
+                <Calendar className="size-4" />
+                <span>
+                  Joined{" "}
+                  {new Date(createdAt).toLocaleDateString("en-US", {
+                    month: "long",
+                    year: "numeric",
+                  })}
                 </span>
               </div>
+            )}
+          </div>
 
-              {createdAt && (
-                <div className="text-muted-foreground">
-                  Joined {new Date(createdAt).toLocaleDateString()}
-                </div>
-              )}
+          {/* Stats */}
+          <div className="flex items-center gap-6 text-sm">
+            <div className="flex items-center gap-1">
+              <span className="font-semibold">{postCount}</span>
+              <span className="text-muted-foreground">
+                {postCount === 1 ? "Post" : "Posts"}
+              </span>
             </div>
           </div>
         </div>
-      </CardContent>
+      </div>
+
+      {/* Edit Profile Dialog */}
       {profileId && (
         <EditProfileDialog
           initialBio={bio ?? ""}
@@ -121,6 +128,6 @@ export function ProfileHeader({
           profileId={profileId}
         />
       )}
-    </Card>
+    </div>
   );
 }

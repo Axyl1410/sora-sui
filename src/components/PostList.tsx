@@ -1,4 +1,4 @@
-import { Empty } from "@/components/ui/empty";
+import { Empty, EmptyDescription, EmptyTitle } from "@/components/ui/empty";
 import { PostCard } from "./PostCard";
 
 type Post = {
@@ -26,12 +26,15 @@ export function PostList({
 }: PostListProps) {
   if (posts.length === 0) {
     return (
-      <Empty className="py-12" description={emptyMessage} title="No posts" />
+      <Empty className="py-12">
+        <EmptyTitle>No posts</EmptyTitle>
+        <EmptyDescription>{emptyMessage}</EmptyDescription>
+      </Empty>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-0">
       {posts.map((post) => (
         <PostCard
           author={post.author}

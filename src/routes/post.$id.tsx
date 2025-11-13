@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   useDeletePost,
   usePost,
@@ -150,6 +151,7 @@ function PostDetailPage() {
       <div className="flex h-full flex-col">
         <div className="sticky top-0 z-10 border-border border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
           <div className="flex h-14 items-center gap-4 px-4">
+            <SidebarTrigger className="md:hidden" />
             <Button
               onClick={() => setIsEditing(false)}
               size="sm"
@@ -178,6 +180,7 @@ function PostDetailPage() {
       {/* Header */}
       <div className="sticky top-0 z-10 border-border border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
         <div className="flex h-14 items-center gap-4 px-4">
+          <SidebarTrigger className="md:hidden" />
           <Button asChild size="sm" variant="ghost">
             <Link to="/">
               <ArrowLeft className="size-4" />

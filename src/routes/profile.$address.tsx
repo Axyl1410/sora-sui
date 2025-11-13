@@ -3,7 +3,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import ClipLoader from "react-spinners/ClipLoader";
 import { PostList } from "@/components/PostList";
 import { ProfileHeader } from "@/components/ProfileHeader";
-import { Separator } from "@/components/ui/separator";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuthorPosts, useProfile } from "@/hooks/useBlog";
 
 export const Route = createFileRoute("/profile/$address")({
@@ -54,7 +55,8 @@ function ProfilePage() {
     <div className="flex h-full flex-col">
       {/* Header */}
       <div className="sticky top-0 z-10 border-border border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex h-14 items-center px-4">
+        <div className="flex h-14 items-center gap-4 px-4">
+          <SidebarTrigger className="md:hidden" />
           <h1 className="font-bold text-xl">
             {isOwnProfile ? "Your Profile" : profile.name}
           </h1>
@@ -73,20 +75,50 @@ function ProfilePage() {
           profileId={profile.id}
         />
 
-        <Separator />
+        {/* Tabs Navigation */}
+        <Tabs className="w-full" defaultValue="posts">
+          <TabsList className="w-full justify-start rounded-none border-b bg-transparent p-0">
+            <TabsTrigger
+              className="rounded-none border-transparent border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              value="posts"
+            >
+              Posts
+            </TabsTrigger>
+            <TabsTrigger
+              className="rounded-none border-transparent border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              disabled
+              value="replies"
+            >
+              Posts & replies
+            </TabsTrigger>
+            <TabsTrigger
+              className="rounded-none border-transparent border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              disabled
+              value="media"
+            >
+              Media
+            </TabsTrigger>
+            <TabsTrigger
+              className="rounded-none border-transparent border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              disabled
+              value="likes"
+            >
+              Likes
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Posts */}
-        <div className="divide-y divide-border">
-          <PostList
-            emptyMessage={
-              isOwnProfile
-                ? "You haven't posted anything yet. Create your first post!"
-                : "This user hasn't posted anything yet."
-            }
-            isOwner={(author) => currentAccount?.address === author}
-            posts={postsWithNames}
-          />
-        </div>
+          <TabsContent className="mt-0" value="posts">
+            <PostList
+              emptyMessage={
+                isOwnProfile
+                  ? "You haven't posted anything yet. Create your first post!"
+                  : "This user hasn't posted anything yet."
+              }
+              isOwner={(author) => currentAccount?.address === author}
+              posts={postsWithNames}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

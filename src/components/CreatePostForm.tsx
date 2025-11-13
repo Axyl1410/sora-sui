@@ -1,10 +1,17 @@
 import { useCurrentAccount } from "@mysten/dapp-kit";
-import { Image, Smile } from "lucide-react";
+import { ArrowUp, Image, Smile } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+  InputGroupText,
+  InputGroupTextarea,
+} from "@/components/ui/input-group";
+import { Separator } from "@/components/ui/separator";
 import { useCreatePost, useProfile } from "@/hooks/useBlog";
 
 type CreatePostFormProps = {
@@ -123,81 +130,79 @@ export function CreatePostForm({
   const canPost = title.trim() && content.trim() && !isLoading;
 
   return (
-    <form className="space-y-3" onSubmit={handleSubmit}>
-      <div className="flex gap-3">
+    <form className="space-y-2" onSubmit={handleSubmit}>
+      <div className="flex gap-2">
         {/* Avatar */}
-        <Avatar className="size-10 flex-shrink-0">
-          <AvatarFallback>
+        <Avatar className="size-9 shrink-0">
+          <AvatarFallback className="text-xs">
             {getInitials(currentProfile?.name, currentAccount?.address)}
           </AvatarFallback>
         </Avatar>
 
         {/* Form Content */}
-        <div className="min-w-0 flex-1 space-y-3">
+        <div className="min-w-0 flex-1 space-y-2">
           {/* Title Input */}
-          <div className="space-y-1">
-            <input
-              className="w-full border-none bg-transparent text-lg placeholder:text-muted-foreground focus:outline-none"
+          <InputGroup>
+            <InputGroupInput
               disabled={isLoading}
               maxLength={MAX_TITLE_LENGTH}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Post title..."
               value={title}
             />
-            {(error || createError) && (
-              <p className="text-destructive text-sm">{error || createError}</p>
-            )}
-          </div>
+          </InputGroup>
 
           {/* Content Textarea */}
-          <div className="space-y-1">
-            <Textarea
-              className="min-h-20 resize-none border-none bg-transparent text-lg placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
+          <InputGroup>
+            <InputGroupTextarea
               disabled={isLoading}
               maxLength={MAX_CONTENT_LENGTH}
               onChange={(e) => setContent(e.target.value)}
               placeholder="What's happening?"
               value={content}
             />
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center justify-between border-border border-t pt-3">
-            <div className="flex items-center gap-4 text-primary">
-              <Button
-                className="size-9 rounded-full"
-                size="icon"
+            <InputGroupAddon align="block-end" className="border-t">
+              <InputGroupButton
+                className="rounded-full"
+                size="icon-xs"
                 type="button"
                 variant="ghost"
               >
-                <Image className="size-5" />
-              </Button>
-              <Button
-                className="size-9 rounded-full"
-                size="icon"
+                <Image className="size-4" />
+              </InputGroupButton>
+              <InputGroupButton
+                className="rounded-full"
+                size="icon-xs"
                 type="button"
                 variant="ghost"
               >
-                <Smile className="size-5" />
-              </Button>
-            </div>
-
-            <div className="flex items-center gap-3">
+                <Smile className="size-4" />
+              </InputGroupButton>
               {(titleLength > 0 || contentLength > 0) && (
-                <span className="text-muted-foreground text-sm">
-                  {contentLength}/{MAX_CONTENT_LENGTH}
-                </span>
+                <>
+                  <InputGroupText className="ml-auto">
+                    {contentLength}/{MAX_CONTENT_LENGTH}
+                  </InputGroupText>
+                  <Separator className="h-4!" orientation="vertical" />
+                </>
               )}
-              <Button
-                className="rounded-full px-6 font-semibold"
+              <InputGroupButton
+                className="rounded-full"
                 disabled={!canPost}
-                size="sm"
+                size="icon-xs"
                 type="submit"
+                variant="default"
               >
-                {isLoading ? "Posting..." : submitLabel}
-              </Button>
-            </div>
-          </div>
+                <ArrowUp className="size-4" />
+                <span className="sr-only">{submitLabel}</span>
+              </InputGroupButton>
+            </InputGroupAddon>
+          </InputGroup>
+
+          {/* Error Message */}
+          {(error || createError) && (
+            <p className="text-destructive text-sm">{error || createError}</p>
+          )}
         </div>
       </div>
     </form>

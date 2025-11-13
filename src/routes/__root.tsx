@@ -169,10 +169,10 @@ const RootLayout = () => {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <SidebarMenuButton
-                        className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                        className="w-full data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                         size="lg"
                       >
-                        <Avatar className="h-8 w-8 rounded-lg">
+                        <Avatar className="h-8 w-8 shrink-0 rounded-lg">
                           <AvatarFallback className="rounded-lg">
                             {getInitials(
                               currentProfile?.name,
@@ -180,7 +180,7 @@ const RootLayout = () => {
                             )}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="grid flex-1 text-left text-sm leading-tight">
+                        <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
                           <span className="truncate font-medium">
                             {displayName}
                           </span>
@@ -189,7 +189,7 @@ const RootLayout = () => {
                             {activeAccount.address.slice(-6)}
                           </span>
                         </div>
-                        <ChevronsUpDown className="ml-auto size-4" />
+                        <ChevronsUpDown className="ml-auto size-4 shrink-0" />
                       </SidebarMenuButton>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
@@ -212,7 +212,8 @@ const RootLayout = () => {
                             {displayName}
                           </span>
                           <span className="truncate text-xs">
-                            {activeAccount.address}
+                            {activeAccount.address.slice(0, 8)}...
+                            {activeAccount.address.slice(-6)}
                           </span>
                         </div>
                       </div>
