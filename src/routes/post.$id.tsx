@@ -40,7 +40,6 @@ import {
   usePost,
   useProfile,
   useUnpinPost,
-  useUpdateComment,
   useUpdatePost,
 } from "@/hooks/useBlog";
 
@@ -61,7 +60,7 @@ function PostDetailPage() {
   const { data: comments } = useComments(id);
   const { updatePost, isPending: isUpdating } = useUpdatePost();
   const { deletePost, isPending: isDeleting } = useDeletePost();
-  const { updateComment } = useUpdateComment();
+  // const { updateComment } = useUpdateComment();
   const { deleteComment } = useDeleteComment();
   const { pinPost, isPending: isPinning } = usePinPost();
   const { unpinPost, isPending: isUnpinning } = useUnpinPost();
