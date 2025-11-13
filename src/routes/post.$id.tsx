@@ -98,9 +98,14 @@ function PostDetailPage() {
     try {
       await updatePost(post.id, data.title, data.content);
       toast.success("Post updated successfully!");
-      queryClient.invalidateQueries({ queryKey: ["posts"] });
-      queryClient.invalidateQueries({ queryKey: ["post", id] });
-      queryClient.invalidateQueries({ queryKey: ["author-posts"] });
+      // Invalidate and refetch all related queries
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["posts"] }),
+        queryClient.invalidateQueries({ queryKey: ["post", id] }),
+        queryClient.invalidateQueries({ queryKey: ["author-posts"] }),
+      ]);
+      // Refetch the current post to get updated data
+      await queryClient.refetchQueries({ queryKey: ["post", id] });
       setIsEditing(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update post");

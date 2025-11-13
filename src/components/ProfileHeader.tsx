@@ -48,7 +48,7 @@ export function ProfileHeader({
   return (
     <div className="flex flex-col">
       {/* Banner */}
-      <div className="h-48 bg-gradient-to-r from-blue-400 to-blue-600" />
+      <div className="h-48 bg-linear-to-r from-blue-400 to-blue-600" />
 
       {/* Profile Section */}
       <div className="relative px-4 pb-4">
