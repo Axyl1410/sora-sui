@@ -6,6 +6,7 @@ module blog::blog {
     use sui::tx_context::TxContext;
     use std::string::{Self as string, String};
     use std::vector;
+    use std::option::{Self as option, Option};
     use sui::table::{Self as table, Table};
     use sui::clock::{Self as clock, Clock};
     use sui::bag::{Self as bag, Bag};
@@ -28,6 +29,22 @@ module blog::blog {
     const EInvalidString: u64 = 12;
     /// Error cho trường hợp post count bị desync (count = 0 nhưng vẫn có posts)
     const EPostCountDesync: u64 = 13;
+    /// Error cho trường hợp đã like post rồi
+    const EAlreadyLiked: u64 = 14;
+    /// Error cho trường hợp chưa like post
+    const ENotLiked: u64 = 15;
+    /// Error cho trường hợp đã follow user rồi
+    const EAlreadyFollowing: u64 = 16;
+    /// Error cho trường hợp chưa follow user
+    const ENotFollowing: u64 = 17;
+    /// Error cho trường hợp không thể follow chính mình
+    const ECannotFollowSelf: u64 = 18;
+    /// Error cho trường hợp comment content quá ngắn
+    const ECommentTooShort: u64 = 19;
+    /// Error cho trường hợp comment content quá dài
+    const ECommentTooLong: u64 = 20;
+    /// Error cho trường hợp comment không tồn tại
+    const ECommentNotFound: u64 = 21;
 
     // === Hằng số (Constants) ===
     const MIN_NAME_LENGTH: u64 = 3;
@@ -37,6 +54,8 @@ module blog::blog {
     const MAX_TITLE_LENGTH: u64 = 100;
     const MIN_CONTENT_LENGTH: u64 = 1;
     const MAX_CONTENT_LENGTH: u64 = 10000;
+    const MIN_COMMENT_LENGTH: u64 = 1;
+    const MAX_COMMENT_LENGTH: u64 = 1000;
 
     // === Structs (Cấu trúc) ===
     public struct ProfileRegistry has key, store {
@@ -54,6 +73,35 @@ module blog::blog {
         post_counts: Table<address, u64>, // Track số lượng posts của mỗi author
     }
 
+    /// Registry để track likes cho posts
+    /// Map: post_id -> Table<user_address, bool>
+    public struct LikeRegistry has key, store {
+        id: UID,
+        likes: Table<ID, Table<address, bool>>, // post_id -> (user_address -> true)
+        like_counts: Table<ID, u64>, // post_id -> like_count
+    }
+
+    /// Registry để track follows giữa users
+    /// Map: user_address -> Table<following_address, bool>
+    public struct FollowRegistry has key, store {
+        id: UID,
+        followers: Table<address, Table<address, bool>>, // user -> (follower -> true)
+        following: Table<address, Table<address, bool>>, // user -> (following -> true)
+    }
+
+    /// Registry để track comments cho posts
+    public struct CommentRegistry has key, store {
+        id: UID,
+        comments_by_post: Table<ID, Bag>, // post_id -> Bag<comment_id>
+        comment_counts: Table<ID, u64>, // post_id -> comment_count
+    }
+
+    /// Registry để track bookmarks của users
+    public struct BookmarkRegistry has key, store {
+        id: UID,
+        bookmarks: Table<address, Bag>, // user_address -> Bag<post_id>
+    }
+
     public struct UserProfile has key {
         id: UID,
         owner: address,
@@ -61,6 +109,9 @@ module blog::blog {
         bio: String,
         created_at: u64,
         updated_at: u64,
+        follower_count: u64, // Số lượng followers
+        following_count: u64, // Số lượng following
+        pinned_post_id: Option<ID>, // Post được pin lên đầu profile
     }
 
     /// CẢI TIẾN: Thêm updated_at cho BlogPost
@@ -71,6 +122,19 @@ module blog::blog {
         content: String,
         created_at: u64,
         updated_at: u64, // CẢI TIẾN: Thêm field này
+        like_count: u64, // Số lượng likes
+        comment_count: u64, // Số lượng comments
+    }
+
+    /// Comment struct để lưu comment hoặc reply
+    public struct Comment has key, store {
+        id: UID,
+        post_id: ID,
+        author: address,
+        content: String,
+        parent_comment_id: Option<ID>, // None = top-level comment, Some(id) = reply
+        created_at: u64,
+        updated_at: u64,
     }
 
     // === Structs cho View Functions ===
@@ -81,6 +145,8 @@ module blog::blog {
         bio: String,
         created_at: u64,
         updated_at: u64,
+        follower_count: u64, // Số lượng followers
+        following_count: u64, // Số lượng following
     }
 
     public struct PostSummary has copy, drop {
@@ -90,6 +156,18 @@ module blog::blog {
         content: String,
         created_at: u64,
         updated_at: u64, // CẢI TIẾN: Thêm field này
+        like_count: u64, // Số lượng likes
+        comment_count: u64, // Số lượng comments
+    }
+
+    public struct CommentSummary has copy, drop {
+        id: ID,
+        post_id: ID,
+        author: address,
+        content: String,
+        parent_comment_id: Option<ID>,
+        created_at: u64,
+        updated_at: u64,
     }
 
     // === Events (Sự kiện) ===
@@ -127,6 +205,57 @@ module blog::blog {
         author: address,
     }
 
+    public struct PostLiked has copy, drop {
+        post_id: ID,
+        user: address,
+        author: address,
+    }
+
+    public struct PostUnliked has copy, drop {
+        post_id: ID,
+        user: address,
+        author: address,
+    }
+
+    public struct UserFollowed has copy, drop {
+        follower: address,
+        following: address,
+    }
+
+    public struct UserUnfollowed has copy, drop {
+        follower: address,
+        following: address,
+    }
+
+    public struct CommentCreated has copy, drop {
+        comment_id: ID,
+        post_id: ID,
+        author: address,
+        parent_comment_id: Option<ID>,
+    }
+
+    public struct CommentUpdated has copy, drop {
+        comment_id: ID,
+        post_id: ID,
+        author: address,
+    }
+
+    public struct CommentDeleted has copy, drop {
+        comment_id: ID,
+        post_id: ID,
+        author: address,
+    }
+
+    public struct PostBookmarked has copy, drop {
+        post_id: ID,
+        user: address,
+    }
+
+    public struct PostUnbookmarked has copy, drop {
+        post_id: ID,
+        user: address,
+    }
+
     // === Init Function ===
     fun init(ctx: &mut TxContext) {
         let profile_registry = ProfileRegistry {
@@ -141,6 +270,33 @@ module blog::blog {
             post_counts: table::new(ctx),
         };
         transfer::share_object(post_registry);
+
+        let like_registry = LikeRegistry {
+            id: object::new(ctx),
+            likes: table::new(ctx),
+            like_counts: table::new(ctx),
+        };
+        transfer::share_object(like_registry);
+
+        let follow_registry = FollowRegistry {
+            id: object::new(ctx),
+            followers: table::new(ctx),
+            following: table::new(ctx),
+        };
+        transfer::share_object(follow_registry);
+
+        let comment_registry = CommentRegistry {
+            id: object::new(ctx),
+            comments_by_post: table::new(ctx),
+            comment_counts: table::new(ctx),
+        };
+        transfer::share_object(comment_registry);
+
+        let bookmark_registry = BookmarkRegistry {
+            id: object::new(ctx),
+            bookmarks: table::new(ctx),
+        };
+        transfer::share_object(bookmark_registry);
     }
 
     // === Helper Functions ===
@@ -217,6 +373,9 @@ module blog::blog {
             bio: bio,
             created_at: now,
             updated_at: now,
+            follower_count: 0, // Khởi tạo follower_count = 0
+            following_count: 0, // Khởi tạo following_count = 0
+            pinned_post_id: option::none(), // Khởi tạo pinned_post_id = None
         };
         let profile_id = object::id(&profile);
 
@@ -261,6 +420,8 @@ module blog::blog {
             content: content,
             created_at: now,
             updated_at: now, // CẢI TIẾN: Khởi tạo updated_at
+            like_count: 0, // Khởi tạo like_count = 0
+            comment_count: 0, // Khởi tạo comment_count = 0
         };
 
         let post_id = object::id(&post);
@@ -397,7 +558,7 @@ module blog::blog {
             owner: owner_address
         });
         
-        let UserProfile { id, owner: _, name: _, bio: _, created_at: _, updated_at: _ } = profile;
+        let UserProfile { id, owner: _, name: _, bio: _, created_at: _, updated_at: _, follower_count: _, following_count: _, pinned_post_id: _ } = profile;
         object::delete(id);
     }
 
@@ -440,8 +601,385 @@ module blog::blog {
             author: author
         });
         
-        let BlogPost { id, author: _, title: _, content: _, created_at: _, updated_at: _ } = post;
+        let BlogPost { id, author: _, title: _, content: _, created_at: _, updated_at: _, like_count: _, comment_count: _ } = post;
         object::delete(id);
+    }
+
+    // === Like/Unlike Functions ===
+    /// Like một post
+    public entry fun like_post(
+        post: &mut BlogPost,
+        like_registry: &mut LikeRegistry,
+        ctx: &mut TxContext
+    ) {
+        let sender = ctx.sender();
+        let post_id = object::id(post);
+        
+        // Đảm bảo entry tồn tại trong likes table
+        if (!table::contains(&like_registry.likes, post_id)) {
+            let likes_table = table::new(ctx);
+            table::add(&mut like_registry.likes, post_id, likes_table);
+        };
+        
+        // Kiểm tra đã like chưa
+        let likes_table = table::borrow_mut(&mut like_registry.likes, post_id);
+        assert!(!table::contains(likes_table, sender), EAlreadyLiked);
+        
+        // Thêm like
+        table::add(likes_table, sender, true);
+        
+        // Update like count trong post
+        post.like_count = post.like_count + 1;
+        
+        // Update like count trong registry
+        if (!table::contains(&like_registry.like_counts, post_id)) {
+            table::add(&mut like_registry.like_counts, post_id, 0);
+        };
+        let count = table::borrow_mut(&mut like_registry.like_counts, post_id);
+        *count = *count + 1;
+        
+        event::emit(PostLiked {
+            post_id: post_id,
+            user: sender,
+            author: post.author,
+        });
+    }
+
+    /// Unlike một post
+    public entry fun unlike_post(
+        post: &mut BlogPost,
+        like_registry: &mut LikeRegistry,
+        ctx: &mut TxContext
+    ) {
+        let sender = ctx.sender();
+        let post_id = object::id(post);
+        
+        // Kiểm tra entry tồn tại
+        assert!(table::contains(&like_registry.likes, post_id), ENotLiked);
+        
+        let likes_table = table::borrow_mut(&mut like_registry.likes, post_id);
+        assert!(table::contains(likes_table, sender), ENotLiked);
+        
+        // Remove like
+        let _value = table::remove(likes_table, sender);
+        
+        // Update like count trong post
+        assert!(post.like_count > 0, EPostCountDesync);
+        post.like_count = post.like_count - 1;
+        
+        // Update like count trong registry
+        if (table::contains(&like_registry.like_counts, post_id)) {
+            let count = table::borrow_mut(&mut like_registry.like_counts, post_id);
+            assert!(*count > 0, EPostCountDesync);
+            *count = *count - 1;
+        };
+        
+        event::emit(PostUnliked {
+            post_id: post_id,
+            user: sender,
+            author: post.author,
+        });
+    }
+
+    // === Follow/Unfollow Functions ===
+    /// Follow một user
+    public entry fun follow_user(
+        follower_profile: &mut UserProfile,
+        following_profile: &mut UserProfile,
+        follow_registry: &mut FollowRegistry,
+        ctx: &mut TxContext
+    ) {
+        let follower = ctx.sender();
+        let following = following_profile.owner;
+        
+        // Không thể follow chính mình
+        assert!(follower != following, ECannotFollowSelf);
+        
+        // Kiểm tra follower là owner của follower_profile
+        assert!(follower_profile.owner == follower, EUnauthorized);
+        
+        // Đảm bảo entry tồn tại trong following table của follower
+        if (!table::contains(&follow_registry.following, follower)) {
+            let following_table = table::new(ctx);
+            table::add(&mut follow_registry.following, follower, following_table);
+        };
+        
+        // Đảm bảo entry tồn tại trong followers table của following
+        if (!table::contains(&follow_registry.followers, following)) {
+            let followers_table = table::new(ctx);
+            table::add(&mut follow_registry.followers, following, followers_table);
+        };
+        
+        // Kiểm tra đã follow chưa
+        let following_table = table::borrow_mut(&mut follow_registry.following, follower);
+        assert!(!table::contains(following_table, following), EAlreadyFollowing);
+        
+        // Thêm vào following table của follower
+        table::add(following_table, following, true);
+        
+        // Thêm vào followers table của following
+        let followers_table = table::borrow_mut(&mut follow_registry.followers, following);
+        table::add(followers_table, follower, true);
+        
+        // Update counts
+        follower_profile.following_count = follower_profile.following_count + 1;
+        following_profile.follower_count = following_profile.follower_count + 1;
+        
+        event::emit(UserFollowed {
+            follower: follower,
+            following: following,
+        });
+    }
+
+    /// Unfollow một user
+    public entry fun unfollow_user(
+        follower_profile: &mut UserProfile,
+        following_profile: &mut UserProfile,
+        follow_registry: &mut FollowRegistry,
+        ctx: &mut TxContext
+    ) {
+        let follower = ctx.sender();
+        let following = following_profile.owner;
+        
+        // Kiểm tra follower là owner của follower_profile
+        assert!(follower_profile.owner == follower, EUnauthorized);
+        
+        // Kiểm tra entry tồn tại
+        assert!(table::contains(&follow_registry.following, follower), ENotFollowing);
+        
+        let following_table = table::borrow_mut(&mut follow_registry.following, follower);
+        assert!(table::contains(following_table, following), ENotFollowing);
+        
+        // Remove từ following table của follower
+        let _value = table::remove(following_table, following);
+        
+        // Remove từ followers table của following
+        if (table::contains(&follow_registry.followers, following)) {
+            let followers_table = table::borrow_mut(&mut follow_registry.followers, following);
+            if (table::contains(followers_table, follower)) {
+                let _value2 = table::remove(followers_table, follower);
+            };
+        };
+        
+        // Update counts
+        assert!(follower_profile.following_count > 0, EPostCountDesync);
+        follower_profile.following_count = follower_profile.following_count - 1;
+        
+        assert!(following_profile.follower_count > 0, EPostCountDesync);
+        following_profile.follower_count = following_profile.follower_count - 1;
+        
+        event::emit(UserUnfollowed {
+            follower: follower,
+            following: following,
+        });
+    }
+
+    // === Comment Functions ===
+    /// Tạo một comment hoặc reply
+    public entry fun create_comment(
+        profile_registry: &ProfileRegistry,
+        post: &mut BlogPost,
+        comment_registry: &mut CommentRegistry,
+        content: String,
+        parent_comment_id: Option<ID>,
+        clock: &Clock,
+        ctx: &mut TxContext
+    ) {
+        let sender = ctx.sender();
+        assert!(table::contains(&profile_registry.profiles, sender), EProfileNotFound);
+        
+        let content_len = string::length(&content);
+        assert!(content_len >= MIN_COMMENT_LENGTH, ECommentTooShort);
+        assert!(content_len <= MAX_COMMENT_LENGTH, ECommentTooLong);
+        assert!(is_valid_string(&content), EInvalidString);
+        
+        let now = clock::timestamp_ms(clock);
+        let comment = Comment {
+            id: object::new(ctx),
+            post_id: object::id(post),
+            author: sender,
+            content: content,
+            parent_comment_id: parent_comment_id,
+            created_at: now,
+            updated_at: now,
+        };
+        
+        let comment_id = object::id(&comment);
+        let post_id = object::id(post);
+        
+        // Đảm bảo entry tồn tại trong comments_by_post
+        if (!table::contains(&comment_registry.comments_by_post, post_id)) {
+            let comments_bag = bag::new(ctx);
+            table::add(&mut comment_registry.comments_by_post, post_id, comments_bag);
+        };
+        
+        // Đảm bảo count entry tồn tại
+        if (!table::contains(&comment_registry.comment_counts, post_id)) {
+            table::add(&mut comment_registry.comment_counts, post_id, 0);
+        };
+        
+        // Thêm comment vào bag
+        let comments_bag = table::borrow_mut(&mut comment_registry.comments_by_post, post_id);
+        bag::add(comments_bag, comment_id, true);
+        
+        // Update count
+        let count = table::borrow_mut(&mut comment_registry.comment_counts, post_id);
+        *count = *count + 1;
+        
+        // Update comment count trong post
+        post.comment_count = post.comment_count + 1;
+        
+        event::emit(CommentCreated {
+            comment_id: comment_id,
+            post_id: post_id,
+            author: sender,
+            parent_comment_id: parent_comment_id,
+        });
+        
+        transfer::transfer(comment, sender);
+    }
+
+    /// Cập nhật một comment
+    public entry fun update_comment(
+        comment: &mut Comment,
+        new_content: String,
+        clock: &Clock,
+        ctx: &mut TxContext
+    ) {
+        assert!(comment.author == ctx.sender(), EUnauthorized);
+        
+        let content_len = string::length(&new_content);
+        assert!(content_len >= MIN_COMMENT_LENGTH, ECommentTooShort);
+        assert!(content_len <= MAX_COMMENT_LENGTH, ECommentTooLong);
+        assert!(is_valid_string(&new_content), EInvalidString);
+        
+        comment.content = new_content;
+        comment.updated_at = clock::timestamp_ms(clock);
+        
+        event::emit(CommentUpdated {
+            comment_id: object::id(comment),
+            post_id: comment.post_id,
+            author: comment.author,
+        });
+    }
+
+    /// Xóa một comment
+    public entry fun delete_comment(
+        post: &mut BlogPost,
+        comment_registry: &mut CommentRegistry,
+        comment: Comment,
+        ctx: &mut TxContext
+    ) {
+        let sender = ctx.sender();
+        assert!(comment.author == sender, EUnauthorized);
+        
+        let comment_id = object::id(&comment);
+        let post_id = comment.post_id;
+        
+        // Remove comment khỏi registry
+        if (table::contains(&comment_registry.comments_by_post, post_id)) {
+            let comments_bag = table::borrow_mut(&mut comment_registry.comments_by_post, post_id);
+            if (bag::contains(comments_bag, comment_id)) {
+                let _value: bool = bag::remove(comments_bag, comment_id);
+            };
+        };
+        
+        // Update count
+        if (table::contains(&comment_registry.comment_counts, post_id)) {
+            let count = table::borrow_mut(&mut comment_registry.comment_counts, post_id);
+            assert!(*count > 0, EPostCountDesync);
+            *count = *count - 1;
+        };
+        
+        // Update comment count trong post
+        assert!(post.comment_count > 0, EPostCountDesync);
+        post.comment_count = post.comment_count - 1;
+        
+        event::emit(CommentDeleted {
+            comment_id: comment_id,
+            post_id: post_id,
+            author: comment.author,
+        });
+        
+        let Comment { id, post_id: _, author: _, content: _, parent_comment_id: _, created_at: _, updated_at: _ } = comment;
+        object::delete(id);
+    }
+
+    // === Bookmark Functions ===
+    /// Bookmark một post
+    public entry fun bookmark_post(
+        profile_registry: &ProfileRegistry,
+        bookmark_registry: &mut BookmarkRegistry,
+        post_id: ID,
+        ctx: &mut TxContext
+    ) {
+        let sender = ctx.sender();
+        assert!(table::contains(&profile_registry.profiles, sender), EProfileNotFound);
+        
+        // Đảm bảo entry tồn tại
+        if (!table::contains(&bookmark_registry.bookmarks, sender)) {
+            let bookmarks_bag = bag::new(ctx);
+            table::add(&mut bookmark_registry.bookmarks, sender, bookmarks_bag);
+        };
+        
+        let bookmarks_bag = table::borrow_mut(&mut bookmark_registry.bookmarks, sender);
+        
+        // Kiểm tra đã bookmark chưa
+        assert!(!bag::contains(bookmarks_bag, post_id), EAlreadyLiked); // Reuse error code
+        
+        // Thêm bookmark
+        bag::add(bookmarks_bag, post_id, true);
+        
+        event::emit(PostBookmarked {
+            post_id: post_id,
+            user: sender,
+        });
+    }
+
+    /// Unbookmark một post
+    public entry fun unbookmark_post(
+        bookmark_registry: &mut BookmarkRegistry,
+        post_id: ID,
+        ctx: &mut TxContext
+    ) {
+        let sender = ctx.sender();
+        
+        // Kiểm tra entry tồn tại
+        assert!(table::contains(&bookmark_registry.bookmarks, sender), ENotLiked); // Reuse error code
+        
+        let bookmarks_bag = table::borrow_mut(&mut bookmark_registry.bookmarks, sender);
+        assert!(bag::contains(bookmarks_bag, post_id), ENotLiked); // Reuse error code
+        
+        // Remove bookmark
+        let _value: bool = bag::remove(bookmarks_bag, post_id);
+        
+        event::emit(PostUnbookmarked {
+            post_id: post_id,
+            user: sender,
+        });
+    }
+
+    // === Post Pinning Functions ===
+    /// Pin một post lên đầu profile
+    public entry fun pin_post(
+        profile: &mut UserProfile,
+        post: &BlogPost,
+        ctx: &mut TxContext
+    ) {
+        assert!(profile.owner == ctx.sender(), EUnauthorized);
+        assert!(post.author == profile.owner, EUnauthorized); // Chỉ có thể pin post của chính mình
+        
+        profile.pinned_post_id = option::some(object::id(post));
+    }
+
+    /// Unpin post khỏi profile
+    public entry fun unpin_post(
+        profile: &mut UserProfile,
+        ctx: &mut TxContext
+    ) {
+        assert!(profile.owner == ctx.sender(), EUnauthorized);
+        
+        profile.pinned_post_id = option::none();
     }
 
     // === Hàm chỉ đọc (View Functions) ===
@@ -471,6 +1009,8 @@ module blog::blog {
             bio: profile.bio,
             created_at: profile.created_at,
             updated_at: profile.updated_at,
+            follower_count: profile.follower_count,
+            following_count: profile.following_count,
         }
     }
 
@@ -482,8 +1022,22 @@ module blog::blog {
             title: post.title,
             content: post.content,
             created_at: post.created_at,
-
             updated_at: post.updated_at, // CẢI TIẾN: Thêm field này
+            like_count: post.like_count, // Số lượng likes
+            comment_count: post.comment_count, // Số lượng comments
+        }
+    }
+
+    /// Lấy toàn bộ thông tin comment
+    public fun get_comment_summary(comment: &Comment): CommentSummary {
+        CommentSummary {
+            id: object::id(comment),
+            post_id: comment.post_id,
+            author: comment.author,
+            content: comment.content,
+            parent_comment_id: comment.parent_comment_id,
+            created_at: comment.created_at,
+            updated_at: comment.updated_at,
         }
     }
 
@@ -506,6 +1060,105 @@ module blog::blog {
 
     public fun get_post_author(post: &BlogPost): address {
         post.author
+    }
+
+    /// Kiểm tra xem user đã like post chưa
+    public fun has_liked(
+        like_registry: &LikeRegistry,
+        post_id: ID,
+        user: address
+    ): bool {
+        if (!table::contains(&like_registry.likes, post_id)) {
+            return false
+        };
+        let likes_table = table::borrow(&like_registry.likes, post_id);
+        table::contains(likes_table, user)
+    }
+
+    /// Lấy số lượng likes của một post
+    public fun get_post_like_count(
+        like_registry: &LikeRegistry,
+        post_id: ID
+    ): u64 {
+        if (!table::contains(&like_registry.like_counts, post_id)) {
+            return 0
+        };
+        *table::borrow(&like_registry.like_counts, post_id)
+    }
+
+    /// Lấy số lượng likes từ post object
+    public fun get_post_like_count_from_object(post: &BlogPost): u64 {
+        post.like_count
+    }
+
+    /// Kiểm tra xem user có đang follow target user không
+    public fun is_following(
+        follow_registry: &FollowRegistry,
+        follower: address,
+        following: address
+    ): bool {
+        if (!table::contains(&follow_registry.following, follower)) {
+            return false
+        };
+        let following_table = table::borrow(&follow_registry.following, follower);
+        table::contains(following_table, following)
+    }
+
+    /// Lấy số lượng followers của một user
+    public fun get_follower_count(profile: &UserProfile): u64 {
+        profile.follower_count
+    }
+
+    /// Lấy số lượng following của một user
+    public fun get_following_count(profile: &UserProfile): u64 {
+        profile.following_count
+    }
+
+    /// Lấy số lượng comments của một post
+    public fun get_post_comment_count(
+        comment_registry: &CommentRegistry,
+        post_id: ID
+    ): u64 {
+        if (!table::contains(&comment_registry.comment_counts, post_id)) {
+            return 0
+        };
+        *table::borrow(&comment_registry.comment_counts, post_id)
+    }
+
+    /// Lấy số lượng comments từ post object
+    public fun get_post_comment_count_from_object(post: &BlogPost): u64 {
+        post.comment_count
+    }
+
+    /// Kiểm tra xem một comment ID có trong bag của post không
+    public fun post_has_comment(
+        comment_registry: &CommentRegistry,
+        post_id: ID,
+        comment_id: ID
+    ): bool {
+        if (!table::contains(&comment_registry.comments_by_post, post_id)) {
+            return false
+        };
+        let comments_bag = table::borrow(&comment_registry.comments_by_post, post_id);
+        bag::contains(comments_bag, comment_id)
+    }
+
+    /// Kiểm tra xem user đã bookmark post chưa
+    public fun is_bookmarked(
+        bookmark_registry: &BookmarkRegistry,
+        user: address,
+        post_id: ID
+    ): bool {
+        if (!table::contains(&bookmark_registry.bookmarks, user)) {
+            return false
+        };
+        let bookmarks_bag = table::borrow(&bookmark_registry.bookmarks, user);
+        bag::contains(bookmarks_bag, post_id)
+    }
+
+    /// Lấy pinned post ID của một user
+    public fun get_pinned_post_id(profile: &UserProfile): Option<ID> {
+        profile.pinned_post_id
     }
 
     // === CẢI TIẾN: Functions để query posts theo author ===

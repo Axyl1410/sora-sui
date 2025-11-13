@@ -4,10 +4,13 @@ module blog::blog_tests {
     use sui::test_scenario::{Self as test_scenario, Scenario};
     use sui::clock::{Self as clock, Clock};
     use sui::transfer;
+    use sui::object;
     use std::string;
+    use std::option;
 
     const ADMIN: address = @0x1;
     const USER1: address = @0x2;
+    const USER2: address = @0x3;
 
     // === Test Helper Functions ===
     fun setup_test_scenario(): Scenario {
@@ -417,6 +420,782 @@ module blog::blog_tests {
         assert!(blog::author_has_posts(&post_registry, USER1), 2);
         assert!(blog::is_author(&post_registry, USER1), 3);
         
+        test_scenario::return_shared(profile_registry);
+        test_scenario::return_shared(post_registry);
+        test_scenario::return_shared(clock);
+        test_scenario::end(scenario);
+    }
+
+    // === Test Like/Unlike Functions ===
+    #[test]
+    fun test_like_post_success() {
+        let mut scenario = setup_test_scenario();
+        test_scenario::next_tx(&mut scenario, USER1);
+        let mut profile_registry = test_scenario::take_shared<blog::ProfileRegistry>(&scenario);
+        let mut post_registry = test_scenario::take_shared<blog::PostRegistry>(&scenario);
+        let mut like_registry = test_scenario::take_shared<blog::LikeRegistry>(&scenario);
+        
+        // Create and share Clock
+        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        clock::share_for_testing(clock);
+        test_scenario::next_tx(&mut scenario, USER1);
+        let clock = test_scenario::take_shared<Clock>(&scenario);
+        
+        // Create profile and post
+        blog::create_profile(
+            &mut profile_registry,
+            string::utf8(b"Alice"),
+            string::utf8(b"Bio"),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        blog::create_post(
+            &profile_registry,
+            &mut post_registry,
+            string::utf8(b"Test Post"),
+            string::utf8(b"Content"),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        // Get post object
+        test_scenario::next_tx(&mut scenario, USER1);
+        let post = test_scenario::take_from_sender<blog::BlogPost>(&scenario);
+        let post_id = object::id(&post);
+        
+        // Like post
+        blog::like_post(
+            &mut post,
+            &mut like_registry,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        // Verify like
+        assert!(blog::has_liked(&like_registry, post_id, USER1), 0);
+        assert!(blog::get_post_like_count_from_object(&post) == 1, 1);
+        assert!(blog::get_post_like_count(&like_registry, post_id) == 1, 2);
+        
+        test_scenario::return_to_sender(&mut scenario, post);
+        test_scenario::return_shared(profile_registry);
+        test_scenario::return_shared(post_registry);
+        test_scenario::return_shared(like_registry);
+        test_scenario::return_shared(clock);
+        test_scenario::end(scenario);
+    }
+
+    #[test]
+    fun test_unlike_post_success() {
+        let mut scenario = setup_test_scenario();
+        test_scenario::next_tx(&mut scenario, USER1);
+        let mut profile_registry = test_scenario::take_shared<blog::ProfileRegistry>(&scenario);
+        let mut post_registry = test_scenario::take_shared<blog::PostRegistry>(&scenario);
+        let mut like_registry = test_scenario::take_shared<blog::LikeRegistry>(&scenario);
+        
+        // Create and share Clock
+        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        clock::share_for_testing(clock);
+        test_scenario::next_tx(&mut scenario, USER1);
+        let clock = test_scenario::take_shared<Clock>(&scenario);
+        
+        // Create profile and post
+        blog::create_profile(
+            &mut profile_registry,
+            string::utf8(b"Alice"),
+            string::utf8(b"Bio"),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        blog::create_post(
+            &profile_registry,
+            &mut post_registry,
+            string::utf8(b"Test Post"),
+            string::utf8(b"Content"),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        // Get post object
+        test_scenario::next_tx(&mut scenario, USER1);
+        let mut post = test_scenario::take_from_sender<blog::BlogPost>(&scenario);
+        let post_id = object::id(&post);
+        
+        // Like then unlike
+        blog::like_post(
+            &mut post,
+            &mut like_registry,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        blog::unlike_post(
+            &mut post,
+            &mut like_registry,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        // Verify unlike
+        assert!(!blog::has_liked(&like_registry, post_id, USER1), 0);
+        assert!(blog::get_post_like_count_from_object(&post) == 0, 1);
+        
+        test_scenario::return_to_sender(&mut scenario, post);
+        test_scenario::return_shared(profile_registry);
+        test_scenario::return_shared(post_registry);
+        test_scenario::return_shared(like_registry);
+        test_scenario::return_shared(clock);
+        test_scenario::end(scenario);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 14)]
+    fun test_like_post_already_liked() {
+        let mut scenario = setup_test_scenario();
+        test_scenario::next_tx(&mut scenario, USER1);
+        let mut profile_registry = test_scenario::take_shared<blog::ProfileRegistry>(&scenario);
+        let mut post_registry = test_scenario::take_shared<blog::PostRegistry>(&scenario);
+        let mut like_registry = test_scenario::take_shared<blog::LikeRegistry>(&scenario);
+        
+        // Create and share Clock
+        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        clock::share_for_testing(clock);
+        test_scenario::next_tx(&mut scenario, USER1);
+        let clock = test_scenario::take_shared<Clock>(&scenario);
+        
+        // Create profile and post
+        blog::create_profile(
+            &mut profile_registry,
+            string::utf8(b"Alice"),
+            string::utf8(b"Bio"),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        blog::create_post(
+            &profile_registry,
+            &mut post_registry,
+            string::utf8(b"Test Post"),
+            string::utf8(b"Content"),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        // Get post object
+        test_scenario::next_tx(&mut scenario, USER1);
+        let mut post = test_scenario::take_from_sender<blog::BlogPost>(&scenario);
+        
+        // Like twice
+        blog::like_post(
+            &mut post,
+            &mut like_registry,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        blog::like_post(
+            &mut post,
+            &mut like_registry,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        test_scenario::return_to_sender(&mut scenario, post);
+        test_scenario::return_shared(profile_registry);
+        test_scenario::return_shared(post_registry);
+        test_scenario::return_shared(like_registry);
+        test_scenario::return_shared(clock);
+        test_scenario::end(scenario);
+    }
+
+    // === Test Follow/Unfollow Functions ===
+    #[test]
+    fun test_follow_user_success() {
+        let mut scenario = setup_test_scenario();
+        test_scenario::next_tx(&mut scenario, USER1);
+        let mut profile_registry = test_scenario::take_shared<blog::ProfileRegistry>(&scenario);
+        let mut follow_registry = test_scenario::take_shared<blog::FollowRegistry>(&scenario);
+        
+        // Create and share Clock
+        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        clock::share_for_testing(clock);
+        test_scenario::next_tx(&mut scenario, USER1);
+        let clock = test_scenario::take_shared<Clock>(&scenario);
+        
+        // Create profiles
+        blog::create_profile(
+            &mut profile_registry,
+            string::utf8(b"Alice"),
+            string::utf8(b"Bio"),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        test_scenario::next_tx(&mut scenario, USER2);
+        blog::create_profile(
+            &mut profile_registry,
+            string::utf8(b"Bob"),
+            string::utf8(b"Bio"),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        // Get profile objects
+        test_scenario::next_tx(&mut scenario, USER1);
+        let mut follower_profile = test_scenario::take_from_sender<blog::UserProfile>(&scenario);
+        test_scenario::next_tx(&mut scenario, USER2);
+        let mut following_profile = test_scenario::take_from_sender<blog::UserProfile>(&scenario);
+        
+        // Follow
+        test_scenario::next_tx(&mut scenario, USER1);
+        blog::follow_user(
+            &mut follower_profile,
+            &mut following_profile,
+            &mut follow_registry,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        // Verify follow
+        assert!(blog::is_following(&follow_registry, USER1, USER2), 0);
+        assert!(blog::get_following_count(&follower_profile) == 1, 1);
+        assert!(blog::get_follower_count(&following_profile) == 1, 2);
+        
+        test_scenario::return_to_sender(&mut scenario, follower_profile);
+        test_scenario::return_to_sender(&mut scenario, following_profile);
+        test_scenario::return_shared(profile_registry);
+        test_scenario::return_shared(follow_registry);
+        test_scenario::return_shared(clock);
+        test_scenario::end(scenario);
+    }
+
+    #[test]
+    fun test_unfollow_user_success() {
+        let mut scenario = setup_test_scenario();
+        test_scenario::next_tx(&mut scenario, USER1);
+        let mut profile_registry = test_scenario::take_shared<blog::ProfileRegistry>(&scenario);
+        let mut follow_registry = test_scenario::take_shared<blog::FollowRegistry>(&scenario);
+        
+        // Create and share Clock
+        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        clock::share_for_testing(clock);
+        test_scenario::next_tx(&mut scenario, USER1);
+        let clock = test_scenario::take_shared<Clock>(&scenario);
+        
+        // Create profiles
+        blog::create_profile(
+            &mut profile_registry,
+            string::utf8(b"Alice"),
+            string::utf8(b"Bio"),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        test_scenario::next_tx(&mut scenario, USER2);
+        blog::create_profile(
+            &mut profile_registry,
+            string::utf8(b"Bob"),
+            string::utf8(b"Bio"),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        // Get profile objects
+        test_scenario::next_tx(&mut scenario, USER1);
+        let mut follower_profile = test_scenario::take_from_sender<blog::UserProfile>(&scenario);
+        test_scenario::next_tx(&mut scenario, USER2);
+        let mut following_profile = test_scenario::take_from_sender<blog::UserProfile>(&scenario);
+        
+        // Follow then unfollow
+        test_scenario::next_tx(&mut scenario, USER1);
+        blog::follow_user(
+            &mut follower_profile,
+            &mut following_profile,
+            &mut follow_registry,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        blog::unfollow_user(
+            &mut follower_profile,
+            &mut following_profile,
+            &mut follow_registry,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        // Verify unfollow
+        assert!(!blog::is_following(&follow_registry, USER1, USER2), 0);
+        assert!(blog::get_following_count(&follower_profile) == 0, 1);
+        assert!(blog::get_follower_count(&following_profile) == 0, 2);
+        
+        test_scenario::return_to_sender(&mut scenario, follower_profile);
+        test_scenario::return_to_sender(&mut scenario, following_profile);
+        test_scenario::return_shared(profile_registry);
+        test_scenario::return_shared(follow_registry);
+        test_scenario::return_shared(clock);
+        test_scenario::end(scenario);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 18)]
+    fun test_follow_self() {
+        let mut scenario = setup_test_scenario();
+        test_scenario::next_tx(&mut scenario, USER1);
+        let mut profile_registry = test_scenario::take_shared<blog::ProfileRegistry>(&scenario);
+        let mut follow_registry = test_scenario::take_shared<blog::FollowRegistry>(&scenario);
+        
+        // Create and share Clock
+        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        clock::share_for_testing(clock);
+        test_scenario::next_tx(&mut scenario, USER1);
+        let clock = test_scenario::take_shared<Clock>(&scenario);
+        
+        // Create profile
+        blog::create_profile(
+            &mut profile_registry,
+            string::utf8(b"Alice"),
+            string::utf8(b"Bio"),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        // Get profile object
+        test_scenario::next_tx(&mut scenario, USER1);
+        let mut profile = test_scenario::take_from_sender<blog::UserProfile>(&scenario);
+        
+        // Try to follow self
+        blog::follow_user(
+            &mut profile,
+            &mut profile,
+            &mut follow_registry,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        test_scenario::return_to_sender(&mut scenario, profile);
+        test_scenario::return_shared(profile_registry);
+        test_scenario::return_shared(follow_registry);
+        test_scenario::return_shared(clock);
+        test_scenario::end(scenario);
+    }
+
+    // === Test Comment Functions ===
+    #[test]
+    fun test_create_comment_success() {
+        let mut scenario = setup_test_scenario();
+        test_scenario::next_tx(&mut scenario, USER1);
+        let mut profile_registry = test_scenario::take_shared<blog::ProfileRegistry>(&scenario);
+        let mut post_registry = test_scenario::take_shared<blog::PostRegistry>(&scenario);
+        let mut comment_registry = test_scenario::take_shared<blog::CommentRegistry>(&scenario);
+        
+        // Create and share Clock
+        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        clock::share_for_testing(clock);
+        test_scenario::next_tx(&mut scenario, USER1);
+        let clock = test_scenario::take_shared<Clock>(&scenario);
+        
+        // Create profile and post
+        blog::create_profile(
+            &mut profile_registry,
+            string::utf8(b"Alice"),
+            string::utf8(b"Bio"),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        blog::create_post(
+            &profile_registry,
+            &mut post_registry,
+            string::utf8(b"Test Post"),
+            string::utf8(b"Content"),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        // Get post object
+        test_scenario::next_tx(&mut scenario, USER1);
+        let mut post = test_scenario::take_from_sender<blog::BlogPost>(&scenario);
+        let post_id = object::id(&post);
+        
+        // Create comment
+        blog::create_comment(
+            &profile_registry,
+            &mut post,
+            &mut comment_registry,
+            string::utf8(b"Great post!"),
+            option::none(),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        // Verify comment
+        assert!(blog::get_post_comment_count_from_object(&post) == 1, 0);
+        assert!(blog::get_post_comment_count(&comment_registry, post_id) == 1, 1);
+        
+        test_scenario::return_to_sender(&mut scenario, post);
+        test_scenario::return_shared(profile_registry);
+        test_scenario::return_shared(post_registry);
+        test_scenario::return_shared(comment_registry);
+        test_scenario::return_shared(clock);
+        test_scenario::end(scenario);
+    }
+
+    #[test]
+    fun test_create_reply_success() {
+        let mut scenario = setup_test_scenario();
+        test_scenario::next_tx(&mut scenario, USER1);
+        let mut profile_registry = test_scenario::take_shared<blog::ProfileRegistry>(&scenario);
+        let mut post_registry = test_scenario::take_shared<blog::PostRegistry>(&scenario);
+        let mut comment_registry = test_scenario::take_shared<blog::CommentRegistry>(&scenario);
+        
+        // Create and share Clock
+        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        clock::share_for_testing(clock);
+        test_scenario::next_tx(&mut scenario, USER1);
+        let clock = test_scenario::take_shared<Clock>(&scenario);
+        
+        // Create profile and post
+        blog::create_profile(
+            &mut profile_registry,
+            string::utf8(b"Alice"),
+            string::utf8(b"Bio"),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        blog::create_post(
+            &profile_registry,
+            &mut post_registry,
+            string::utf8(b"Test Post"),
+            string::utf8(b"Content"),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        // Get post object
+        test_scenario::next_tx(&mut scenario, USER1);
+        let mut post = test_scenario::take_from_sender<blog::BlogPost>(&scenario);
+        
+        // Create comment
+        blog::create_comment(
+            &profile_registry,
+            &mut post,
+            &mut comment_registry,
+            string::utf8(b"Great post!"),
+            option::none(),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        // Get comment object
+        test_scenario::next_tx(&mut scenario, USER1);
+        let comment = test_scenario::take_from_sender<blog::Comment>(&scenario);
+        let comment_id = object::id(&comment);
+        
+        // Create reply
+        blog::create_comment(
+            &profile_registry,
+            &mut post,
+            &mut comment_registry,
+            string::utf8(b"Thanks!"),
+            option::some(comment_id),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        // Verify reply
+        assert!(blog::get_post_comment_count_from_object(&post) == 2, 0);
+        
+        test_scenario::return_to_sender(&mut scenario, comment);
+        test_scenario::return_to_sender(&mut scenario, post);
+        test_scenario::return_shared(profile_registry);
+        test_scenario::return_shared(post_registry);
+        test_scenario::return_shared(comment_registry);
+        test_scenario::return_shared(clock);
+        test_scenario::end(scenario);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 19)]
+    fun test_create_comment_too_short() {
+        let mut scenario = setup_test_scenario();
+        test_scenario::next_tx(&mut scenario, USER1);
+        let mut profile_registry = test_scenario::take_shared<blog::ProfileRegistry>(&scenario);
+        let mut post_registry = test_scenario::take_shared<blog::PostRegistry>(&scenario);
+        let mut comment_registry = test_scenario::take_shared<blog::CommentRegistry>(&scenario);
+        
+        // Create and share Clock
+        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        clock::share_for_testing(clock);
+        test_scenario::next_tx(&mut scenario, USER1);
+        let clock = test_scenario::take_shared<Clock>(&scenario);
+        
+        // Create profile and post
+        blog::create_profile(
+            &mut profile_registry,
+            string::utf8(b"Alice"),
+            string::utf8(b"Bio"),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        blog::create_post(
+            &profile_registry,
+            &mut post_registry,
+            string::utf8(b"Test Post"),
+            string::utf8(b"Content"),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        // Get post object
+        test_scenario::next_tx(&mut scenario, USER1);
+        let mut post = test_scenario::take_from_sender<blog::BlogPost>(&scenario);
+        
+        // Try to create empty comment
+        blog::create_comment(
+            &profile_registry,
+            &mut post,
+            &mut comment_registry,
+            string::utf8(b""), // Too short
+            option::none(),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        test_scenario::return_to_sender(&mut scenario, post);
+        test_scenario::return_shared(profile_registry);
+        test_scenario::return_shared(post_registry);
+        test_scenario::return_shared(comment_registry);
+        test_scenario::return_shared(clock);
+        test_scenario::end(scenario);
+    }
+
+    // === Test Bookmark Functions ===
+    #[test]
+    fun test_bookmark_post_success() {
+        let mut scenario = setup_test_scenario();
+        test_scenario::next_tx(&mut scenario, USER1);
+        let mut profile_registry = test_scenario::take_shared<blog::ProfileRegistry>(&scenario);
+        let mut post_registry = test_scenario::take_shared<blog::PostRegistry>(&scenario);
+        let mut bookmark_registry = test_scenario::take_shared<blog::BookmarkRegistry>(&scenario);
+        
+        // Create and share Clock
+        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        clock::share_for_testing(clock);
+        test_scenario::next_tx(&mut scenario, USER1);
+        let clock = test_scenario::take_shared<Clock>(&scenario);
+        
+        // Create profile and post
+        blog::create_profile(
+            &mut profile_registry,
+            string::utf8(b"Alice"),
+            string::utf8(b"Bio"),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        blog::create_post(
+            &profile_registry,
+            &mut post_registry,
+            string::utf8(b"Test Post"),
+            string::utf8(b"Content"),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        // Get post object
+        test_scenario::next_tx(&mut scenario, USER1);
+        let post = test_scenario::take_from_sender<blog::BlogPost>(&scenario);
+        let post_id = object::id(&post);
+        
+        // Bookmark
+        test_scenario::next_tx(&mut scenario, USER1);
+        blog::bookmark_post(
+            &profile_registry,
+            &mut bookmark_registry,
+            post_id,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        // Verify bookmark
+        assert!(blog::is_bookmarked(&bookmark_registry, USER1, post_id), 0);
+        
+        test_scenario::return_to_sender(&mut scenario, post);
+        test_scenario::return_shared(profile_registry);
+        test_scenario::return_shared(post_registry);
+        test_scenario::return_shared(bookmark_registry);
+        test_scenario::return_shared(clock);
+        test_scenario::end(scenario);
+    }
+
+    #[test]
+    fun test_unbookmark_post_success() {
+        let mut scenario = setup_test_scenario();
+        test_scenario::next_tx(&mut scenario, USER1);
+        let mut profile_registry = test_scenario::take_shared<blog::ProfileRegistry>(&scenario);
+        let mut post_registry = test_scenario::take_shared<blog::PostRegistry>(&scenario);
+        let mut bookmark_registry = test_scenario::take_shared<blog::BookmarkRegistry>(&scenario);
+        
+        // Create and share Clock
+        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        clock::share_for_testing(clock);
+        test_scenario::next_tx(&mut scenario, USER1);
+        let clock = test_scenario::take_shared<Clock>(&scenario);
+        
+        // Create profile and post
+        blog::create_profile(
+            &mut profile_registry,
+            string::utf8(b"Alice"),
+            string::utf8(b"Bio"),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        blog::create_post(
+            &profile_registry,
+            &mut post_registry,
+            string::utf8(b"Test Post"),
+            string::utf8(b"Content"),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        // Get post object
+        test_scenario::next_tx(&mut scenario, USER1);
+        let post = test_scenario::take_from_sender<blog::BlogPost>(&scenario);
+        let post_id = object::id(&post);
+        
+        // Bookmark then unbookmark
+        test_scenario::next_tx(&mut scenario, USER1);
+        blog::bookmark_post(
+            &profile_registry,
+            &mut bookmark_registry,
+            post_id,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        blog::unbookmark_post(
+            &mut bookmark_registry,
+            post_id,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        // Verify unbookmark
+        assert!(!blog::is_bookmarked(&bookmark_registry, USER1, post_id), 0);
+        
+        test_scenario::return_to_sender(&mut scenario, post);
+        test_scenario::return_shared(profile_registry);
+        test_scenario::return_shared(post_registry);
+        test_scenario::return_shared(bookmark_registry);
+        test_scenario::return_shared(clock);
+        test_scenario::end(scenario);
+    }
+
+    // === Test Post Pinning Functions ===
+    #[test]
+    fun test_pin_post_success() {
+        let mut scenario = setup_test_scenario();
+        test_scenario::next_tx(&mut scenario, USER1);
+        let mut profile_registry = test_scenario::take_shared<blog::ProfileRegistry>(&scenario);
+        let mut post_registry = test_scenario::take_shared<blog::PostRegistry>(&scenario);
+        
+        // Create and share Clock
+        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        clock::share_for_testing(clock);
+        test_scenario::next_tx(&mut scenario, USER1);
+        let clock = test_scenario::take_shared<Clock>(&scenario);
+        
+        // Create profile and post
+        blog::create_profile(
+            &mut profile_registry,
+            string::utf8(b"Alice"),
+            string::utf8(b"Bio"),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        blog::create_post(
+            &profile_registry,
+            &mut post_registry,
+            string::utf8(b"Test Post"),
+            string::utf8(b"Content"),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        // Get profile and post objects
+        test_scenario::next_tx(&mut scenario, USER1);
+        let mut profile = test_scenario::take_from_sender<blog::UserProfile>(&scenario);
+        let post = test_scenario::take_from_sender<blog::BlogPost>(&scenario);
+        let post_id = object::id(&post);
+        
+        // Pin post
+        blog::pin_post(
+            &mut profile,
+            &post,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        // Verify pin
+        let pinned_id = blog::get_pinned_post_id(&profile);
+        assert!(option::contains(&pinned_id, &post_id), 0);
+        
+        test_scenario::return_to_sender(&mut scenario, profile);
+        test_scenario::return_to_sender(&mut scenario, post);
+        test_scenario::return_shared(profile_registry);
+        test_scenario::return_shared(post_registry);
+        test_scenario::return_shared(clock);
+        test_scenario::end(scenario);
+    }
+
+    #[test]
+    fun test_unpin_post_success() {
+        let mut scenario = setup_test_scenario();
+        test_scenario::next_tx(&mut scenario, USER1);
+        let mut profile_registry = test_scenario::take_shared<blog::ProfileRegistry>(&scenario);
+        let mut post_registry = test_scenario::take_shared<blog::PostRegistry>(&scenario);
+        
+        // Create and share Clock
+        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        clock::share_for_testing(clock);
+        test_scenario::next_tx(&mut scenario, USER1);
+        let clock = test_scenario::take_shared<Clock>(&scenario);
+        
+        // Create profile and post
+        blog::create_profile(
+            &mut profile_registry,
+            string::utf8(b"Alice"),
+            string::utf8(b"Bio"),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        blog::create_post(
+            &profile_registry,
+            &mut post_registry,
+            string::utf8(b"Test Post"),
+            string::utf8(b"Content"),
+            &clock,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        // Get profile and post objects
+        test_scenario::next_tx(&mut scenario, USER1);
+        let mut profile = test_scenario::take_from_sender<blog::UserProfile>(&scenario);
+        let post = test_scenario::take_from_sender<blog::BlogPost>(&scenario);
+        
+        // Pin then unpin
+        blog::pin_post(
+            &mut profile,
+            &post,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        blog::unpin_post(
+            &mut profile,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        // Verify unpin
+        let pinned_id = blog::get_pinned_post_id(&profile);
+        assert!(option::is_none(&pinned_id), 0);
+        
+        test_scenario::return_to_sender(&mut scenario, profile);
+        test_scenario::return_to_sender(&mut scenario, post);
         test_scenario::return_shared(profile_registry);
         test_scenario::return_shared(post_registry);
         test_scenario::return_shared(clock);
