@@ -683,20 +683,26 @@ module blog::blog {
 
     // === Follow/Unfollow Functions ===
     /// Follow một user
+    /// CẢI TIẾN: Chỉ cần following_address thay vì following_profile object
+    /// Vì following_profile được owned bởi người khác, không thể truyền vào transaction
     public entry fun follow_user(
         follower_profile: &mut UserProfile,
-        following_profile: &mut UserProfile,
+        profile_registry: &ProfileRegistry,
+        following_address: address, // CẢI TIẾN: Chỉ cần address, không cần object
         follow_registry: &mut FollowRegistry,
         ctx: &mut TxContext
     ) {
         let follower = ctx.sender();
-        let following = following_profile.owner;
+        let following = following_address;
         
         // Không thể follow chính mình
         assert!(follower != following, ECannotFollowSelf);
         
         // Kiểm tra follower là owner của follower_profile
         assert!(follower_profile.owner == follower, EUnauthorized);
+        
+        // Kiểm tra following_address có profile không
+        assert!(table::contains(&profile_registry.profiles, following), EProfileNotFound);
         
         // Đảm bảo entry tồn tại trong following table của follower
         if (!table::contains(&follow_registry.following, follower)) {
@@ -721,9 +727,10 @@ module blog::blog {
         let followers_table = table::borrow_mut(&mut follow_registry.followers, following);
         table::add(followers_table, follower, true);
         
-        // Update counts
+        // Update count - chỉ update follower_profile vì following_profile không thể mutate
         follower_profile.following_count = follower_profile.following_count + 1;
-        following_profile.follower_count = following_profile.follower_count + 1;
+        // CẢI TIẾN: following_profile.follower_count sẽ được update off-chain hoặc qua event
+        // Vì following_profile được owned bởi người khác, không thể mutate trong transaction này
         
         event::emit(UserFollowed {
             follower: follower,
@@ -732,14 +739,16 @@ module blog::blog {
     }
 
     /// Unfollow một user
+    /// CẢI TIẾN: Chỉ cần following_address thay vì following_profile object
+    /// Vì following_profile được owned bởi người khác, không thể truyền vào transaction
     public entry fun unfollow_user(
         follower_profile: &mut UserProfile,
-        following_profile: &mut UserProfile,
+        following_address: address, // CẢI TIẾN: Chỉ cần address, không cần object
         follow_registry: &mut FollowRegistry,
         ctx: &mut TxContext
     ) {
         let follower = ctx.sender();
-        let following = following_profile.owner;
+        let following = following_address;
         
         // Kiểm tra follower là owner của follower_profile
         assert!(follower_profile.owner == follower, EUnauthorized);
@@ -761,12 +770,11 @@ module blog::blog {
             };
         };
         
-        // Update counts
+        // Update count - chỉ update follower_profile vì following_profile không thể mutate
         assert!(follower_profile.following_count > 0, EPostCountDesync);
         follower_profile.following_count = follower_profile.following_count - 1;
-        
-        assert!(following_profile.follower_count > 0, EPostCountDesync);
-        following_profile.follower_count = following_profile.follower_count - 1;
+        // CẢI TIẾN: following_profile.follower_count sẽ được update off-chain hoặc qua event
+        // Vì following_profile được owned bởi người khác, không thể mutate trong transaction này
         
         event::emit(UserUnfollowed {
             follower: follower,
