@@ -17,10 +17,10 @@ export function useFollowUser() {
 
   const followUser = (
     followerProfileId: string,
-    followingProfileId: string
+    followingAddress: string // CẢI TIẾN: Chỉ cần address, không cần profile object
   ) => {
-    if (!registries?.followRegistry) {
-      throw new Error("Follow registry not found");
+    if (!(registries?.followRegistry && registries?.profileRegistry)) {
+      throw new Error("Registry not found");
     }
 
     setError(null);
@@ -30,7 +30,8 @@ export function useFollowUser() {
     tx.moveCall({
       arguments: [
         tx.object(followerProfileId),
-        tx.object(followingProfileId),
+        tx.object(registries.profileRegistry),
+        tx.pure.address(followingAddress), // CẢI TIẾN: Dùng pure address thay vì object
         tx.object(registries.followRegistry),
       ],
       target: `${blogPackageId}::blog::follow_user`,
@@ -75,7 +76,7 @@ export function useUnfollowUser() {
 
   const unfollowUser = (
     followerProfileId: string,
-    followingProfileId: string
+    followingAddress: string // CẢI TIẾN: Chỉ cần address, không cần profile object
   ) => {
     if (!registries?.followRegistry) {
       throw new Error("Follow registry not found");
@@ -88,7 +89,7 @@ export function useUnfollowUser() {
     tx.moveCall({
       arguments: [
         tx.object(followerProfileId),
-        tx.object(followingProfileId),
+        tx.pure.address(followingAddress), // CẢI TIẾN: Dùng pure address thay vì object
         tx.object(registries.followRegistry),
       ],
       target: `${blogPackageId}::blog::unfollow_user`,

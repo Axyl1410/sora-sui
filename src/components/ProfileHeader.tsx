@@ -49,13 +49,13 @@ export function ProfileHeader({
   const { unfollowUser, isPending: isUnfollowingPending } = useUnfollowUser();
 
   const handleFollow = async () => {
-    if (!(currentUserProfile?.id && profileId)) return;
+    if (!(currentUserProfile?.id && address)) return;
 
     try {
       if (isFollowing) {
-        await unfollowUser(currentUserProfile.id, profileId);
+        await unfollowUser(currentUserProfile.id, address); // CẢI TIẾN: Truyền address thay vì profileId
       } else {
-        await followUser(currentUserProfile.id, profileId);
+        await followUser(currentUserProfile.id, address); // CẢI TIẾN: Truyền address thay vì profileId
       }
       queryClient.invalidateQueries({ queryKey: ["profile", address] });
       queryClient.invalidateQueries({

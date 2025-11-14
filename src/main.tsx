@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import "@mysten/dapp-kit/dist/index.css";
 import "@radix-ui/themes/styles.css";
-
 import {
   SuiClientProvider,
   useSuiClientContext,
@@ -72,5 +71,6 @@ function RegisterEnokiWallets() {
     });
     return unregister;
   }, [client, network]);
+
   return null;
 }
