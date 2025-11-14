@@ -1,9 +1,14 @@
-import React from "react";
+import React, { useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import "@mysten/dapp-kit/dist/index.css";
 import "@radix-ui/themes/styles.css";
 
-import { SuiClientProvider, WalletProvider } from "@mysten/dapp-kit";
+import {
+  SuiClientProvider,
+  useSuiClientContext,
+  WalletProvider,
+} from "@mysten/dapp-kit";
+import { isEnokiNetwork, registerEnokiWallets } from "@mysten/enoki";
 import { Theme } from "@radix-ui/themes";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
@@ -13,6 +18,9 @@ import { networkConfig } from "./networkConfig.ts";
 import { routeTree } from "./routeTree.gen";
 
 const queryClient = new QueryClient();
+
+const ENOKI_API_KEY = import.meta.env.VITE_ENOKI_API_KEY;
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 // Create a new router instance
 const router = createRouter({ routeTree });
@@ -33,6 +41,7 @@ if (!rootElement.innerHTML) {
       <Theme appearance="light">
         <QueryClientProvider client={queryClient}>
           <SuiClientProvider defaultNetwork="testnet" networks={networkConfig}>
+            <RegisterEnokiWallets />
             <WalletProvider autoConnect>
               <RouterProvider router={router} />
             </WalletProvider>
@@ -41,4 +50,27 @@ if (!rootElement.innerHTML) {
       </Theme>
     </React.StrictMode>
   );
+}
+
+function RegisterEnokiWallets() {
+  const { client, network } = useSuiClientContext();
+  useEffect(() => {
+    if (!isEnokiNetwork(network)) {
+      return;
+    }
+
+    const { unregister } = registerEnokiWallets({
+      apiKey: ENOKI_API_KEY,
+      providers: {
+        // Provide the client IDs for each of the auth providers you want to use:
+        google: {
+          clientId: GOOGLE_CLIENT_ID,
+        },
+      },
+      client,
+      network,
+    });
+    return unregister;
+  }, [client, network]);
+  return null;
 }
