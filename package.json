@@ -15,7 +15,7 @@
     "@hookform/resolvers": "^5.2.2",
     "@mysten/dapp-kit": "0.19.8",
     "@mysten/enoki": "^0.12.11",
-    "@mysten/sui": "1.44.0",
+    "@mysten/sui": "1.45.0",
     "@radix-ui/colors": "^3.0.0",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -84,5 +84,10 @@
     "typescript": "^5.9.2",
     "ultracite": "^6.3.2",
     "vite": "^7.1.5"
+  },
+  "pnpm": {
+    "overrides": {
+      "@mysten/sui": "1.45.0"
+    }
   }
 }

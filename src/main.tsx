@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import "@mysten/dapp-kit/dist/index.css";
 import "@radix-ui/themes/styles.css";
@@ -12,8 +12,8 @@ import { isEnokiNetwork, registerEnokiWallets } from "@mysten/enoki";
 import { Theme } from "@radix-ui/themes";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
+import React from "react";
 import { networkConfig } from "./networkConfig.ts";
-
 // Import the generated route tree
 import { routeTree } from "./routeTree.gen";
 
