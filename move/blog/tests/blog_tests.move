@@ -636,17 +636,16 @@ module blog::blog_tests {
             test_scenario::ctx(&mut scenario)
         );
         
-        // Get profile objects
+        // Get follower profile object
         test_scenario::next_tx(&mut scenario, USER1);
         let mut follower_profile = test_scenario::take_from_sender<blog::UserProfile>(&scenario);
-        test_scenario::next_tx(&mut scenario, USER2);
-        let mut following_profile = test_scenario::take_from_sender<blog::UserProfile>(&scenario);
         
-        // Follow
+        // Follow using address lookup
         test_scenario::next_tx(&mut scenario, USER1);
         blog::follow_user(
             &mut follower_profile,
-            &mut following_profile,
+            &profile_registry,
+            USER2,
             &mut follow_registry,
             test_scenario::ctx(&mut scenario)
         );
@@ -654,10 +653,8 @@ module blog::blog_tests {
         // Verify follow
         assert!(blog::is_following(&follow_registry, USER1, USER2), 0);
         assert!(blog::get_following_count(&follower_profile) == 1, 1);
-        assert!(blog::get_follower_count(&following_profile) == 1, 2);
         
         test_scenario::return_to_sender(&mut scenario, follower_profile);
-        test_scenario::return_to_sender(&mut scenario, following_profile);
         test_scenario::return_shared(profile_registry);
         test_scenario::return_shared(follow_registry);
         test_scenario::return_shared(clock);
@@ -695,24 +692,23 @@ module blog::blog_tests {
             test_scenario::ctx(&mut scenario)
         );
         
-        // Get profile objects
+        // Get follower profile object
         test_scenario::next_tx(&mut scenario, USER1);
         let mut follower_profile = test_scenario::take_from_sender<blog::UserProfile>(&scenario);
-        test_scenario::next_tx(&mut scenario, USER2);
-        let mut following_profile = test_scenario::take_from_sender<blog::UserProfile>(&scenario);
         
-        // Follow then unfollow
+        // Follow then unfollow using address lookups
         test_scenario::next_tx(&mut scenario, USER1);
         blog::follow_user(
             &mut follower_profile,
-            &mut following_profile,
+            &profile_registry,
+            USER2,
             &mut follow_registry,
             test_scenario::ctx(&mut scenario)
         );
         
         blog::unfollow_user(
             &mut follower_profile,
-            &mut following_profile,
+            USER2,
             &mut follow_registry,
             test_scenario::ctx(&mut scenario)
         );
@@ -720,10 +716,8 @@ module blog::blog_tests {
         // Verify unfollow
         assert!(!blog::is_following(&follow_registry, USER1, USER2), 0);
         assert!(blog::get_following_count(&follower_profile) == 0, 1);
-        assert!(blog::get_follower_count(&following_profile) == 0, 2);
         
         test_scenario::return_to_sender(&mut scenario, follower_profile);
-        test_scenario::return_to_sender(&mut scenario, following_profile);
         test_scenario::return_shared(profile_registry);
         test_scenario::return_shared(follow_registry);
         test_scenario::return_shared(clock);
@@ -757,10 +751,11 @@ module blog::blog_tests {
         test_scenario::next_tx(&mut scenario, USER1);
         let mut profile = test_scenario::take_from_sender<blog::UserProfile>(&scenario);
         
-        // Try to follow self
+        // Try to follow self via address
         blog::follow_user(
             &mut profile,
-            &mut profile,
+            &profile_registry,
+            USER1,
             &mut follow_registry,
             test_scenario::ctx(&mut scenario)
         );
