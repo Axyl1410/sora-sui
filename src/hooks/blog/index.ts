@@ -14,6 +14,8 @@ export {
   useUserComments,
 } from "./hooks/comment";
 export {
+  useFollowerCount,
+  useFollowingCount,
   useFollowUser,
   useIsFollowing,
   useUnfollowUser,

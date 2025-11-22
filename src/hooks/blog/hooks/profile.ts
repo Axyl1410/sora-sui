@@ -89,7 +89,106 @@ export function useProfile(address: string | undefined) {
           return null;
         }
 
-        return parseProfile(profileData.data);
+        const profile = parseProfile(profileData.data);
+        if (!profile) {
+          return null;
+        }
+
+        // Calculate follower_count and following_count from events
+        // because follower_count is not updated in the profile object when someone follows
+        const userFollowedType = `${blogPackageId}::blog::UserFollowed`;
+        const userUnfollowedType = `${blogPackageId}::blog::UserUnfollowed`;
+
+        // Get all follow/unfollow events
+        const [followEvents, unfollowEvents] = await Promise.all([
+          suiClient.queryEvents({
+            query: { MoveEventType: userFollowedType },
+            limit: 1000,
+            order: "descending",
+          }),
+          suiClient.queryEvents({
+            query: { MoveEventType: userUnfollowedType },
+            limit: 1000,
+            order: "descending",
+          }),
+        ]);
+
+        // Calculate follower_count (users following this address)
+        const followerSet = new Set<string>();
+        followEvents.data.forEach((event) => {
+          const parsed = event.parsedJson as {
+            follower: string;
+            following: string;
+          };
+          if (parsed.following === address) {
+            followerSet.add(parsed.follower);
+          }
+        });
+        unfollowEvents.data.forEach((unfollowEvent) => {
+          const parsed = unfollowEvent.parsedJson as {
+            follower: string;
+            following: string;
+          };
+          if (parsed.following === address) {
+            // Check if there's a follow event before this unfollow
+            const followEvent = followEvents.data.find((event) => {
+              const followParsed = event.parsedJson as {
+                follower: string;
+                following: string;
+              };
+              return (
+                followParsed.follower === parsed.follower &&
+                followParsed.following === address &&
+                event.id.txDigest < unfollowEvent.id.txDigest
+              );
+            });
+            if (followEvent) {
+              followerSet.delete(parsed.follower);
+            }
+          }
+        });
+
+        // Calculate following_count (users this address is following)
+        const followingSet = new Set<string>();
+        followEvents.data.forEach((event) => {
+          const parsed = event.parsedJson as {
+            follower: string;
+            following: string;
+          };
+          if (parsed.follower === address) {
+            followingSet.add(parsed.following);
+          }
+        });
+        unfollowEvents.data.forEach((unfollowEvent) => {
+          const parsed = unfollowEvent.parsedJson as {
+            follower: string;
+            following: string;
+          };
+          if (parsed.follower === address) {
+            // Check if there's a follow event before this unfollow
+            const followEvent = followEvents.data.find((event) => {
+              const followParsed = event.parsedJson as {
+                follower: string;
+                following: string;
+              };
+              return (
+                followParsed.follower === address &&
+                followParsed.following === parsed.following &&
+                event.id.txDigest < unfollowEvent.id.txDigest
+              );
+            });
+            if (followEvent) {
+              followingSet.delete(parsed.following);
+            }
+          }
+        });
+
+        // Return profile with calculated counts
+        return {
+          ...profile,
+          followerCount: followerSet.size,
+          followingCount: followingSet.size,
+        };
       } catch {
         return null;
       }

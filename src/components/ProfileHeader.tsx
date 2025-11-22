@@ -2,6 +2,7 @@ import { useCurrentAccount } from "@mysten/dapp-kit";
 import { useQueryClient } from "@tanstack/react-query";
 import { Calendar, Edit, UserMinus, UserPlus } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { EditProfileDialog } from "@/components/EditProfileDialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -53,9 +54,11 @@ export function ProfileHeader({
 
     try {
       if (isFollowing) {
-        await unfollowUser(currentUserProfile.id, address); // CẢI TIẾN: Truyền address thay vì profileId
+        await unfollowUser(currentUserProfile.id, address);
+        toast.success("Unfollowed successfully");
       } else {
-        await followUser(currentUserProfile.id, address); // CẢI TIẾN: Truyền address thay vì profileId
+        await followUser(currentUserProfile.id, address);
+        toast.success("Followed successfully");
       }
       queryClient.invalidateQueries({ queryKey: ["profile", address] });
       queryClient.invalidateQueries({
@@ -63,7 +66,10 @@ export function ProfileHeader({
       });
       queryClient.invalidateQueries({ queryKey: ["is-following"] });
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to toggle follow";
       console.error("Error toggling follow:", error);
+      toast.error(errorMessage);
     }
   };
 
